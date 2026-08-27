@@ -21,3 +21,21 @@ NVIDIA 面向物理 AI 的全模态世界模型（Omnimodal World Model）调研
 - 内容：Mixture-of-Transformers（MoT）双塔架构、AR/DM 双子序列、3D MRoPE 绝对时间调制、统一动作表示、整流流多阶段训练
 - 来源：论文 [*Cosmos 3: Omnimodal World Models for Physical AI*](https://arxiv.org/abs/2606.02800)（arXiv:2606.02800）与 [NVIDIA 官方博客](https://blogs.nvidia.cn/blog/nvidia-launches-cosmos-3-the-open-frontier-foundation-model-for-physical-ai/)
 - 配图：`cosmos3/assets/`
+
+### 3. [LingBot-World](lingbot-world/)
+
+Robbyant 开源的交互式世界模拟器（源自视频生成）调研：
+
+- [LingBot-World-架构与创新点详解.md](lingbot-world/LingBot-World-架构与创新点详解.md)
+- 内容：三阶段演化训练（预训练→中期训练→后期训练）、按去噪步路由的双专家 MoE（28B/步激活 14B）、块因果注意力 + KV cache 流式生成、DMD+对抗蒸馏、涌现记忆能力、LingBot-World 2.0（Infinity）
+- 来源：技术报告 [*Advancing Open-source World Models*](https://arxiv.org/abs/2601.20540)（arXiv:2601.20540）与 [*Infinite Worlds with Versatile Interactions*](https://arxiv.org/abs/2607.07534)
+- 配图：`lingbot-world/assets/`
+
+### 4. [LingBot-Video](lingbot-video/)
+
+Robbyant 面向具身智能的稀疏 MoE 视频基础模型调研：
+
+- [LingBot-Video-架构与创新点详解.md](lingbot-video/LingBot-Video-架构与创新点详解.md)
+- 内容：任务统一单流 Diffusion Transformer、DeepSeekMoE 风格稀疏 MoE（13B/1.4B 激活，可扩至 120B）、级联 Refiner、六维奖励 GRPO、负样本感知微调、动作条件世界模型 A2V
+- 来源：论文 [*Scaling Mixture-of-Experts Video Pretraining for Embodied Intelligence*](https://arxiv.org/abs/2607.07675)（arXiv:2607.07675）
+- 配图：`lingbot-video/assets/`
