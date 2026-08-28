@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDD 并行解码蒸馏 · 图解与交互演示</title>
+<meta name="description" content="Parallel Decoding Distillation (PDD) 算法图解：一次网络评估并行推进多个去噪步长。含论文原图、演示视频与可交互的采样演示。">
+<link rel="stylesheet" href="assets/katex/katex.min.css">
+<style>
+  :root{
+    --nv-green:#76b900;
+    --nv-green-dark:#5c9100;
+    --ink:#1b2430;
+    --ink-2:#3d4a5c;
+    --ink-3:#66788f;
+    --bg:#ffffff;
+    --bg-soft:#f5f7f9;
+    --bg-card:#fafbfc;
+    --line:#e3e8ee;
+    --dark-bg:#0d1117;
+    --dark-panel:#161b24;
+    --accent-amber:#e8a33d;
+    --accent-red:#d9534f;
+    --accent-teal:#2fa98f;
+    --radius:14px;
+    --nav-h:56px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+    line-height:1.72;
+    font-size:16px;
+  }
+  ::selection{background:rgba(118,185,0,.22);}
+
+  /* ---------- nav ---------- */
+  nav{
+    position:sticky;top:0;z-index:50;
+    height:var(--nav-h);
+    background:rgba(255,255,255,.88);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:6px;
+    padding:0 22px;
+    overflow-x:auto;white-space:nowrap;
+  }
+  nav .brand{
+    font-weight:800;font-size:15px;letter-spacing:.2px;
+    color:var(--ink);
+    display:flex;align-items:center;gap:8px;
+    margin-right:14px;
+  }
+  nav .brand .dot{width:10px;height:10px;border-radius:3px;background:var(--nv-green);display:inline-block;}
+  nav a{
+    color:var(--ink-2);text-decoration:none;font-size:13.5px;font-weight:600;
+    padding:6px 10px;border-radius:8px;transition:all .15s;
+  }
+  nav a:hover{background:rgba(118,185,0,.12);color:var(--nv-green-dark);}
+
+  /* ---------- hero ---------- */
+  header{
+    padding:64px 22px 40px;
+    background:
+      radial-gradient(900px 420px at 82% -10%, rgba(118,185,0,.10), transparent 60%),
+      radial-gradient(700px 380px at 8% 110%, rgba(46,169,143,.08), transparent 60%),
+      var(--bg);
+    border-bottom:1px solid var(--line);
+  }
+  .hero-inner{max-width:1060px;margin:0 auto;}
+  .kicker{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:13px;font-weight:700;color:var(--nv-green-dark);
+    background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.35);
+    padding:5px 12px;border-radius:999px;margin-bottom:18px;letter-spacing:.3px;
+  }
+  .kicker .pulse{width:8px;height:8px;border-radius:50%;background:var(--nv-green);animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(118,185,0,.45);}50%{box-shadow:0 0 0 6px rgba(118,185,0,0);}}
+  h1{font-size:clamp(30px,4.6vw,46px);line-height:1.22;font-weight:850;letter-spacing:-.5px;}
+  h1 .en{color:var(--ink-2);font-weight:600;}
+  .hero-sub{
+    margin-top:16px;font-size:17px;color:var(--ink-2);max-width:820px;
+  }
+  .badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;}
+  .badge{
+    font-size:13px;font-weight:700;color:var(--ink);
+    border:1px solid var(--line);background:#fff;border-radius:10px;
+    padding:7px 13px;box-shadow:0 1px 2px rgba(16,24,40,.05);
+  }
+  .badge b{color:var(--nv-green-dark);}
+  .hero-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px;}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    text-decoration:none;font-weight:700;font-size:14.5px;
+    padding:11px 18px;border-radius:11px;transition:all .15s;
+  }
+  .btn-primary{background:var(--nv-green);color:#fff;box-shadow:0 2px 10px rgba(118,185,0,.35);}
+  .btn-primary:hover{background:var(--nv-green-dark);transform:translateY(-1px);}
+  .btn-ghost{border:1px solid var(--line);color:var(--ink-2);background:#fff;}
+  .btn-ghost:hover{border-color:var(--nv-green);color:var(--nv-green-dark);}
+
+  /* ---------- layout ---------- */
+  main{max-width:1060px;margin:0 auto;padding:0 22px 80px;}
+  section{padding-top:70px;scroll-margin-top:calc(var(--nav-h) + 10px);}
+  .sec-head{margin-bottom:8px;}
+  .sec-num{
+    display:inline-block;font-size:13px;font-weight:800;color:var(--nv-green-dark);
+    background:rgba(118,185,0,.12);border-radius:8px;padding:3px 10px;letter-spacing:.5px;
+    margin-bottom:10px;
+  }
+  h2{font-size:clamp(23px,3vw,30px);font-weight:800;letter-spacing:-.3px;line-height:1.3;}
+  h2 .en{color:var(--ink-3);font-weight:600;font-size:.78em;}
+  .sec-lead{color:var(--ink-2);font-size:16.5px;max-width:880px;margin-top:10px;}
+  h3{font-size:18.5px;font-weight:750;margin:30px 0 10px;letter-spacing:-.2px;}
+  p{margin:10px 0;}
+  strong{color:var(--ink);}
+  a{color:var(--nv-green-dark);}
+  code{
+    background:rgba(118,185,0,.10);border:1px solid rgba(118,185,0,.22);
+    border-radius:6px;padding:1.5px 7px;font-size:.86em;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    color:#3c5a00;
+  }
+  .eq{overflow-x:auto;padding:2px 0;}
+
+  .card{
+    background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px 24px;margin:18px 0;
+  }
+  .card h4{font-size:15.5px;font-weight:750;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+  .card h4 .tag{
+    font-size:11px;font-weight:800;color:#fff;background:var(--nv-green);
+    border-radius:6px;padding:2px 8px;letter-spacing:.4px;
+  }
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0;}
+  @media(max-width:860px){.grid2,.grid3{grid-template-columns:1fr;}}
+
+  figure{margin:20px 0;}
+  .fig-frame{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;box-shadow:0 1px 3px rgba(16,24,40,.06);
+  }
+  .fig-frame img{display:block;width:100%;height:auto;border-radius:6px;}
+  figcaption{
+    font-size:13.5px;color:var(--ink-3);margin-top:10px;text-align:center;line-height:1.6;
+  }
+  figcaption b{color:var(--ink-2);}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;}
+  th{
+    background:var(--bg-soft);color:var(--ink-2);font-weight:750;text-align:left;
+    padding:10px 13px;border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  td{padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2);}
+  tr:last-child td{border-bottom:none;}
+  td:first-child{color:var(--ink);font-weight:650;white-space:nowrap;}
+  .hl{color:var(--nv-green-dark);font-weight:800;}
+  .table-wrap{border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;margin:18px 0;background:#fff;}
+
+  /* ---------- videos ---------- */
+  .video-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0;}
+  @media(max-width:900px){.video-grid{grid-template-columns:1fr;}}
+  .video-card{
+    border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+    background:#fff;box-shadow:0 1px 3px rgba(16,24,40,.06);
+  }
+  .video-card video{display:block;width:100%;background:#000;}
+  .video-cap{padding:11px 14px;font-size:13.5px;color:var(--ink-2);}
+  .video-cap .vtag{
+    display:inline-block;font-size:11px;font-weight:800;color:#fff;
+    background:var(--nv-green);border-radius:6px;padding:2px 8px;margin-bottom:6px;letter-spacing:.3px;
+  }
+  .video-cap .vtag.audio{background:var(--accent-teal);}
+  .video-cap .vtag.wan{background:#6b5ea8;}
+  .video-wrap-single{margin:20px 0;}
+  .video-wrap-single video{
+    width:100%;border-radius:var(--radius);border:1px solid var(--line);background:#000;
+  }
+
+  /* ---------- insight boxes ---------- */
+  .insight{
+    border-left:4px solid var(--nv-green);background:rgba(118,185,0,.07);
+    border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin:20px 0;
+  }
+  .insight.warn{border-color:var(--accent-amber);background:rgba(232,163,61,.08);}
+  .insight .ttl{font-weight:800;font-size:14.5px;margin-bottom:6px;color:var(--ink);}
+  .insight p{margin:6px 0;font-size:15px;color:var(--ink-2);}
+
+  /* ---------- demo ---------- */
+  .demo-panel{
+    background:var(--dark-bg);border-radius:var(--radius);padding:18px;
+    margin:22px 0;box-shadow:0 8px 30px rgba(13,17,23,.25);
+  }
+  .demo-panel canvas{
+    display:block;width:100%;height:auto;border-radius:8px;background:#0a0e14;
+  }
+  .demo-controls{
+    display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:16px;
+    color:#c7d0dc;font-size:14px;
+  }
+  .demo-controls label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;}
+  .demo-controls input[type=checkbox]{accent-color:var(--nv-green);width:15px;height:15px;cursor:pointer;}
+  .demo-controls select{
+    background:var(--dark-panel);color:#e6ecf3;border:1px solid #2a3342;
+    border-radius:8px;padding:6px 10px;font-size:14px;font-weight:600;cursor:pointer;
+  }
+  .demo-btn{
+    background:var(--nv-green);border:none;color:#fff;font-weight:750;font-size:14px;
+    padding:8px 18px;border-radius:9px;cursor:pointer;transition:all .15s;
+  }
+  .demo-btn:hover{background:var(--nv-green-dark);}
+  .demo-btn.sec{background:var(--dark-panel);border:1px solid #2a3342;color:#c7d0dc;}
+  .demo-btn.sec:hover{border-color:var(--nv-green);color:#fff;}
+  .demo-info{
+    margin-top:14px;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:13.5px;
+    color:#8fa3b8;background:var(--dark-panel);border-radius:8px;padding:10px 14px;
+  }
+  .demo-legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:13.5px;color:#aab7c6;}
+  .demo-legend span{display:inline-flex;align-items:center;gap:7px;}
+  .sw{width:20px;height:4px;border-radius:2px;display:inline-block;}
+  .sw.dot{width:9px;height:9px;border-radius:50%;}
+
+  ul.tight,ol.tight{padding-left:22px;margin:10px 0;}
+  ul.tight li,ol.tight li{margin:6px 0;color:var(--ink-2);}
+
+  footer{
+    border-top:1px solid var(--line);background:var(--bg-soft);
+    padding:34px 22px 50px;color:var(--ink-3);font-size:13.5px;
+  }
+  .footer-inner{max-width:1060px;margin:0 auto;}
+  .footer-inner a{color:var(--ink-2);}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0;}
+  @media(max-width:860px){.steps{grid-template-columns:1fr;}}
+  .step{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 18px 16px;
+  }
+  .step .snum{
+    width:30px;height:30px;border-radius:9px;background:var(--nv-green);color:#fff;
+    font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:10px;
+    font-size:15px;
+  }
+  .step h4{font-size:15px;margin-bottom:6px;}
+  .step p{font-size:14px;color:var(--ink-2);margin:0;}
+
+  .katex-display{margin:14px 0;overflow-x:auto;overflow-y:hidden;}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="brand"><span class="dot"></span>PDD · 并行解码蒸馏</span>
+  <a href="#s1">核心思想</a>
+  <a href="#s2">背景</a>
+  <a href="#s3">原理</a>
+  <a href="#s4">训练</a>
+  <a href="#s5">架构</a>
+  <a href="#s6">变 NFE</a>
+  <a href="#s7">交互演示</a>
+  <a href="#s8">实验效果</a>
+  <a href="#s9">对比</a>
+  <a href="#s10">局限</a>
+</nav>
+
+<header>
+  <div class="hero-inner">
+    <span class="kicker"><span class="pulse"></span>NVIDIA GenAI Research · 2026</span>
+    <h1>Parallel Decoding Distillation<br><span class="en">并行解码蒸馏：一次网络评估，推进多个去噪步长</span></h1>
+    <p class="hero-sub">
+      扩散 / 流匹配模型采样慢，主流加速靠 VSD + 对抗损失蒸馏，但难调优、易模式坍缩。PDD 用一个<strong>纯回归</strong>的轨迹式蒸馏目标，
+      让学生在<strong>一次前向推理</strong>里并行预测一个块内多个子区间的平均速度 —— 无需 JVP、有限差分、GAN 或 VSD，
+      在 <strong>4–8 NFE</strong> 下达到 SOTA，且显著保留生成多样性。本文用图、动画与可交互演示把它讲透。
+    </p>
+    <div class="badges">
+      <span class="badge">🎯 <b>纯回归</b> 无对抗 / 无 VSD</span>
+      <span class="badge">⚡ <b>4–8 NFE</b> 接近教师质量</span>
+      <span class="badge">🎬 <b>视频保多样性</b> 抗模式坍缩</span>
+      <span class="badge">🔀 <b>变 NFE</b> 一个模型多档速度</span>
+      <span class="badge">🆓 <b>Data-free</b> 无需配对数据</span>
+    </div>
+    <div class="hero-links">
+      <a class="btn btn-primary" href="https://arxiv.org/abs/2607.26004" target="_blank" rel="noopener">📄 arXiv 论文</a>
+      <a class="btn btn-ghost" href="https://research.nvidia.com/labs/genair/pdd/" target="_blank" rel="noopener">🌐 项目主页</a>
+      <a class="btn btn-ghost" href="https://github.com/NVlabs/fastgen" target="_blank" rel="noopener">💻 代码 FastGen</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= 1 核心思想 ================= -->
+<section id="s1">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 01</span>
+    <h2>核心思想：不是「合并大步」，而是「并行预测多步」<span class="en">/ One evaluation, L steps</span></h2>
+  </div>
+  <p class="sec-lead">
+    传统轨迹式蒸馏（Progressive Distillation、Consistency、Flow Maps）的思路是：把教师在多个小区间上的更新<strong>合并成一个大步</strong>，让学生一次跳过去。
+    PDD 反其道而行 —— 把时间域离散成 <code>N</code> 个区间、分组为大小为 <code>L</code> 的块，学生一次前向推理同时给出块内 <strong>L 个区间的平均速度</strong>，
+    各自迈小步，从而一次评估推进 L 个区间。
+  </p>
+  <div class="video-wrap-single">
+    <video autoplay muted loop playsinline controls preload="auto" poster="">
+      <source src="assets/videos/fig1_pdd_vs_fm.mp4" type="video/mp4">
+    </video>
+    <figcaption style="text-align:center"><b>图 1（官方动画）</b>：同样的网络评估次数下，Flow Matching（FM）只推进 1 步，而 PDD 并行推进多个步长。</figcaption>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <h4>离散化</h4>
+      <p>把采样时间 <code>[0,1]</code> 切成 <code>N</code> 个小区间，再分成大小为 <code>L</code> 的块。</p>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <h4>并行预测</h4>
+      <p>对每个块，学生<strong>一次推理</strong>输出 L 个子区间各自的平均速度，而不是一个大方向。</p>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <h4>块步推进</h4>
+      <p>按各自的步长迈小步，一次评估跨过 L 个区间；重复 N/L 次得到最终样本，即 NFE = N/L。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2 背景 ================= -->
+<section id="s2">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 02</span>
+    <h2>背景：生成为什么慢？为什么要蒸馏？<span class="en">/ Why distillation</span></h2>
+  </div>
+  <p>
+    扩散 / 流匹配模型生成 = 解一个常微分方程（ODE）。经典求解器每步只推进一个小区间，往往需要<strong>上百次网络推理</strong>
+    （如 Wan2.1 教师用 UniPC 50×2 NFE）。把模型蒸馏成「少数几步」的生成器，是当前加速的主流路线，分为两大流派：
+  </p>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th style="width:130px"></th>
+        <th>轨迹式 Trajectory-based</th>
+        <th>分布式 Distribution-based</th>
+      </tr>
+      <tr>
+        <td>思路</td>
+        <td>学生复刻教师的<strong>采样轨迹</strong>（逐步对齐）</td>
+        <td>只对齐学生 / 教师的<strong>边际分布</strong>，不苛求轨迹</td>
+      </tr>
+      <tr>
+        <td>代表</td>
+        <td>Progressive Distillation、Consistency Models、Flow Maps、Pi-Flow、<b class="hl">PDD（本页）</b></td>
+        <td>ADD/LADD（GAN）、DMD/DMD2（VSD）、rCM、AnyFlow</td>
+      </tr>
+      <tr>
+        <td>优点</td>
+        <td>忠实轨迹、天然保留多样性</td>
+        <td>视频大模型上质量高、效果好</td>
+      </tr>
+      <tr>
+        <td>痛点</td>
+        <td>搬到视频上质量崩 / 训练贵（依赖 JVP、有限差分）</td>
+        <td>loss 难调、易<strong>模式坍缩</strong> → 多样性差、运动少甚至静止</td>
+      </tr>
+    </table>
+  </div>
+  <div class="insight">
+    <div class="ttl">💡 PDD 的立场</div>
+    <p>视频蒸馏的 SOTA（DMD2、AnyFlow、rCM）几乎全是分布式的，靠 VSD/对抗损失 —— 代价是模式坍缩。PDD 证明：<strong>纯回归的轨迹式方法也能在视频上做到 SOTA</strong>，
+    前提是「把难学的整块大步，拆成好学的多个子区间小步」。</p>
+  </div>
+</section>
+
+<!-- ================= 3 原理 ================= -->
+<section id="s3">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 03</span>
+    <h2>原理：并行解码器 <span class="en">/ Parallel decoder</span></h2>
+  </div>
+  <p class="sec-lead">
+    流模型的速度场 <code>v<sub>t</sub>(x)</code> 定义了 ODE。把时间离散后，每个区间上的精确一步可以写成「步长 × 平均速度」的形式。
+    PDD 的学生模型学的就是：<strong>给定块起点状态，一次推理输出块内所有子区间的平均速度</strong>。
+  </p>
+
+  <figure>
+    <div class="fig-frame">
+      <img src="assets/figures/pd_sketch.svg" alt="PDD 采样轨迹示意图：N 个区间分组为 L 大小的块">
+    </div>
+    <figcaption><b>图 2（论文原图）</b>：采样轨迹被离散为 N 个区间并分组为大小为 L 的块；并行解码器用<strong>一次评估</strong>预测一个块内所有区间的平均速度。</figcaption>
+  </figure>
+
+  <h3>三个关键数学对象</h3>
+  <div class="card">
+    <h4><span class="tag">A</span> 精确解与平均速度（教师的世界）</h4>
+    <p class="eq">$$X_{n+1} = X_{n} + (t_{n+1}-t_{n})\,u_{n}(X_{n}), \qquad u_{n}(X_{n}) = \frac{1}{t_{n+1}-t_n}\int_{t_n}^{t_{n+1}} v_t(X_t)\,dt$$</p>
+    <p><code>u<sub>n</sub></code> 是区间 <code>[t<sub>n</sub>, t<sub>n+1</sub>]</code> 上的<strong>平均速度</strong>。Euler 用它近似为起点瞬时速度 <code>v<sub>tₙ</sub></code>；Midpoint 则近似为中点速度，精度更高（训练时可选，见 §4）。</p>
+  </div>
+  <div class="card">
+    <h4><span class="tag">B</span> 并行解码器（学生要学的映射）</h4>
+    <p class="eq">$$\bar u^{\theta}_{n}(k \mid X_{n}) \;\approx\; u_{k}(X_{k}), \qquad k = n,\dots,n+L-1$$</p>
+    <p>给定块起点状态 <code>X<sub>n</sub></code>，一次前向推理输出 <code>L</code> 个速度 <code>ū<sup>θ</sup><sub>n</sub>(·|X<sub>n</sub>) ∈ 𝓧<sup>L</sup></code>。
+    关键前提：块内状态序列 <code>X<sub>n+1</sub>,…,X<sub>n+L</sub></code> 被精确解与起点完全确定 —— 所以「并行预测」这个目标是良定义的。</p>
+  </div>
+  <div class="card">
+    <h4><span class="tag">C</span> 并行化过程与块步规则（训练 / 推理怎么用）</h4>
+    <p class="eq">$$\bar X_{k+1} = \bar X_{k} + (t_{k+1}-t_k)\,\bar u^{\theta}_{n}(k \mid X_{n}),\qquad \bar X_{n+L} = X_n + \sum_{k=n}^{n+L-1}(t_{k+1}-t_k)\,\bar u^{\theta}_{n}(k\mid X_{n})$$</p>
+    <p>训练时沿 <code>X̄</code> 走完整个块（一次学生推理）；推理时用右边的<strong>块步规则</strong>直接跨过 L 个区间。重复 N/L 次块步，就得到 NFE = N/L 的采样。</p>
+  </div>
+</section>
+
+<!-- ================= 4 训练 ================= -->
+<section id="s4">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 04</span>
+    <h2>训练：PD Loss —— 一个纯回归目标 <span class="en">/ On-policy regression</span></h2>
+  </div>
+  <p class="sec-lead">
+    PDD 的目标是把学生的每个输出对齐到教师在<strong>学生轨迹状态</strong>上的平均速度（用 Euler / Midpoint 近似）。训练是 on-policy 的：目标总在学生自己走到的地方求值。
+  </p>
+  <div class="card" style="background:#fff">
+    <h4><span class="tag">LOSS</span> 并行解码损失</h4>
+    <p class="eq">$$\mathcal{L}_{\mathrm{PD}}(\theta) \;=\; \mathbb{E}\Big[\big\|\bar u^{\theta}_{n}(k\mid X_{n}) \;-\; u_{k}\big(\mathrm{sg}(\bar X_{k})\big)\big\|^{2}\Big]$$</p>
+    <ul class="tight">
+      <li>块起点 <code>n</code> 与块内下标 <code>k</code> 均匀采样；起点状态 <code>X<sub>n</sub> ~ p<sub>tₙ</sub></code> 用插值过程采样（或有数据时直接构造）。</li>
+      <li><code>X̄<sub>k</sub></code> 是学生自己 roll out 的块内状态 —— <strong>on-policy</strong>：目标永远在学生当前轨迹上求值，防止训练 / 推理分布偏移。</li>
+      <li><code>sg</code> = stop-gradient：梯度不穿过 rollout，省显存省算力（这是它便宜的关键）。</li>
+      <li>教师平均速度 <code>u<sub>k</sub></code> 用 <strong>Euler（1 次教师推理）或 Midpoint（2 次）</strong>近似。</li>
+      <li>每次迭代只监督一个随机子区间 <code>k</code>，但期望上覆盖所有头 —— 单个子区间的信号累积成整块平均速度的学习。</li>
+    </ul>
+  </div>
+  <div class="grid2">
+    <figure>
+      <div class="fig-frame">
+        <img src="assets/figures/pd_loss.svg" alt="并行解码损失示意图">
+      </div>
+      <figcaption><b>图 4（论文原图）</b>：蓝色为学生 rollout，绿色为教师在区间上的 ODE 求解步，红色为损失惩罚的残差（块大小 L=4）。</figcaption>
+    </figure>
+    <figure>
+      <div class="video-wrap-single" style="margin:0">
+        <video autoplay muted loop playsinline controls preload="auto">
+          <source src="assets/videos/fig5_training_sim.mp4" type="video/mp4">
+        </video>
+      </div>
+      <figcaption><b>图 5（官方动画）</b>：玩具问题上的 PDD 训练模拟 —— 随着训练推进，学生轨迹（绿）逐渐对齐教师「最优轨迹」，损失下降。</figcaption>
+    </figure>
+  </div>
+  <h3>Data-free 训练（视频 / 音频的关键）</h3>
+  <p>
+    高质量视频数据稀缺，因此 PDD 提供<strong>在线 on-policy 无数据训练</strong>：从纯噪声 <code>X<sub>0</sub> ~ p<sub>0</sub></code> 出发，
+    交替执行「优化步」与「推进步」—— 用学生当前输出（stop-grad）把状态推进一个块，下一迭代继续。
+    Qwen-Image、Wan2.1、LTX-2.3 全部走这条路线；教师侧的 CFG、cross-modal / spatiotemporal skip 引导全部<strong>折进教师目标</strong>，学生推理时不需要额外评估。
+  </p>
+  <div class="insight">
+    <div class="ttl">💡 为什么「按块并行预测」比「直接预测大步」好训练？</div>
+    <p>中间时刻的速度场更温和，回归目标更良性；等价于给同一个块提供 L 个监督点而不是 1 个。论文用「块内曲率非平凡」验证学生确实学到了块内的非线性结构（见附录），
+    并给出命题：在可实现假设下，PD loss 的极小值点使得学生轨迹 = 教师轨迹（归纳证明）。</p>
+  </div>
+</section>
+
+<!-- ================= 5 架构 ================= -->
+<section id="s5">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 05</span>
+    <h2>架构与层融合：训练 N 个头，推理融合成 1 个 <span class="en">/ Layer fusion</span></h2>
+  </div>
+  <p class="sec-lead">
+    学生复用教师 backbone，只把最后一层线性层<strong>重复 N 次</strong>（每个时间格点一个头）。推理时因为「线性层的加权和仍是线性层」，
+    一个块的方向可以<strong>精确融合</strong>成一个线性层 —— 推理算力、显存与教师完全相同。
+  </p>
+  <div class="grid3">
+    <figure>
+      <div class="fig-frame">
+        <img src="assets/figures/arch_teacher.svg" alt="教师架构：单线性输出头">
+      </div>
+      <figcaption>(a) 教师：backbone + 1 个线性头，输出瞬时速度</figcaption>
+    </figure>
+    <figure>
+      <div class="fig-frame">
+        <img src="assets/figures/arch_student.svg" alt="学生训练架构：N 个线性输出头">
+      </div>
+      <figcaption>(b) 学生训练：backbone + <b>N 个</b>线性头（每个格点一个）</figcaption>
+    </figure>
+    <figure>
+      <div class="fig-frame">
+        <img src="assets/figures/arch_student_fused.svg" alt="学生推理架构：融合线性输出头">
+      </div>
+      <figcaption>(c) 学生推理：融合成 <b>1 个</b>线性头，直接跨整块</figcaption>
+    </figure>
+  </div>
+  <div class="card" style="background:#fff">
+    <h4><span class="tag">MATH</span> 融合公式</h4>
+    <p class="eq">$$v_t(x) = W\,H_t(x) \quad\Rightarrow\quad \bar u^{\theta}_n(k|x_n) = W^{\theta}_k\,H^{\theta}_{t_n}(x_n)$$</p>
+    <p class="eq">$$\bar X_{n+L} = \bar X_n + (t_{n+L}-t_n)\,W^{\theta}_{n:n+L}\,H^{\theta}_{t_n}(\bar X_n), \qquad W^{\theta}_{n:n+L} = \sum_{k=n}^{n+L-1}\Delta_k W^{\theta}_k,\;\; \Delta_k = \frac{t_{k+1}-t_k}{t_{n+L}-t_n}$$</p>
+    <p>块方向是 L 个子方向按步长加权的平均 —— 因为每个 <code>Δ<sub>k</sub></code> 是标量，权重可以直接折进线性层。共享 backbone 学的是「块区间上的平均速度」表示，
+    N 个线性头把它<strong>分解</strong>成并行子区间预测 —— 这就是「不回归导数（无 JVP / 有限差分），直接分解」的含义。</p>
+  </div>
+  <div class="insight">
+    <div class="ttl">💡 两全其美</div>
+    <p>训练时需要每个子区间各自的方向（用于逐子步的监督与 rollout），所以保留 N 个头；推理时只需要块的加权平均方向，所以融合成 1 个头。
+    <strong>推理代价 = 教师代价</strong>（同 backbone、单线性层、同显存）。</p>
+  </div>
+</section>
+
+<!-- ================= 6 变 NFE ================= -->
+<section id="s6">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 06</span>
+    <h2>可变 NFE：一个模型，多档速度 <span class="en">/ Variable NFE</span></h2>
+  </div>
+  <p>
+    为什么用 N 个（格子级）头而不是 L 个（块级）头？因为 <strong>N 个头的模型天然支持任意块大小</strong>：推理时按目标 NFE 选块大小 L = N / NFE。
+    训练时块大小在 <code>[L<sub>min</sub>, L<sub>max</sub>]</code> 内随机变化，一次训练覆盖所有目标档位 —— 不需要像 flow maps 那样引入第二个时间坐标重新训练。
+  </p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>推理档位 NFE</th><th>块大小 L（以 N=64 为例）</th><th>每次评估推进</th><th>总评估次数</th></tr>
+      <tr><td>2</td><td>32</td><td>32 个区间</td><td>2</td></tr>
+      <tr><td>4</td><td>16</td><td>16 个区间</td><td>4</td></tr>
+      <tr><td>8</td><td>8</td><td>8 个区间</td><td>8</td></tr>
+      <tr><td>16</td><td>4</td><td>4 个区间</td><td>16</td></tr>
+    </table>
+  </div>
+  <p class="eq" style="font-size:14px;color:var(--ink-2)">
+    实际配置：ImageNet 用 N=128（Euler）/ 64（Midpoint）；T2I / T2V 用 N=256（Euler）/ 128（Midpoint），配 shift 时间重参数化，支持 2 / 4 / 8 NFE（LTX-2.3 为 4 / 8）。
+  </p>
+</section>
+
+<!-- ================= 7 交互演示 ================= -->
+<section id="s7">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 07</span>
+    <h2>交互演示：为什么 PDD 的块步能「精确命中」曲线？<span class="en">/ Play with it</span></h2>
+  </div>
+  <p class="sec-lead">
+    下面是一个二维玩具流：真实轨迹是一条<strong>螺旋曲线</strong>（教师用细积分近似）。绿色折线是 PDD 学生 —— 每次「网络评估」预测块内
+    L 个子区间方向，一次推进 L 个区间。红色虚线是<strong>朴素大步 Euler</strong>（同样的评估次数，但每次只沿起点瞬时速度直线跳）。
+    调一调 NFE，看看两者差距。
+  </p>
+  <div class="demo-panel">
+    <canvas id="demoCanvas" width="760" height="520"></canvas>
+    <div class="demo-legend">
+      <span><span class="sw" style="background:#5c7391"></span> 教师精确轨迹（细积分）</span>
+      <span><span class="sw" style="background:#ef5350"></span> 朴素大步 Euler（起点瞬时速度）</span>
+      <span><span class="sw" style="background:#76b900"></span> PDD 块步（块平均速度）</span>
+      <span><span class="sw dot" style="background:#2fa98f"></span> 块内子区间方向（一次评估给出）</span>
+      <span><span class="sw dot" style="background:#e8a33d"></span> 网络评估点（块起点）</span>
+    </div>
+    <div class="demo-controls">
+      <label>NFE（块数 M）
+        <select id="nfeSel">
+          <option value="2">2</option>
+          <option value="4" selected>4</option>
+          <option value="8">8</option>
+          <option value="16">16</option>
+        </select>
+      </label>
+      <button class="demo-btn" id="playBtn">▶ 播放</button>
+      <button class="demo-btn sec" id="stepBtn">⏭ 单步</button>
+      <button class="demo-btn sec" id="resetBtn">↺ 重置</button>
+      <button class="demo-btn sec" id="seedBtn">🎲 换一条轨迹</button>
+      <label><input type="checkbox" id="chkTeacher" checked> 教师轨迹</label>
+      <label><input type="checkbox" id="chkEuler" checked> 朴素 Euler</label>
+      <label><input type="checkbox" id="chkSub" checked> 子区间方向</label>
+    </div>
+    <div class="demo-info" id="demoInfo">网格 N=64 · NFE=4 · 块大小 L=16 → 每次网络评估推进 16 个区间，共 4 次评估</div>
+  </div>
+  <div class="insight">
+    <div class="ttl">💡 为什么 PDD 的顶点恰好落在曲线上？</div>
+    <p>块步的方向是<strong>块平均速度</strong>：<code>u = (X(t<sub>n+L</sub>) − X(t<sub>n</sub>)) / (t<sub>n+L</sub> − t<sub>n</sub>)</code>，这正是连接块两端点的<strong>弦方向</strong>。
+    如果学生完美预测了每个子区间的平均速度，加权求和就精确等于整块的平均速度 —— 一步直达真实终点。
+    而朴素大步 Euler 用的是<strong>起点处的瞬时速度</strong>（切线方向），螺旋曲率大，切线一下就冲离曲线。<code>M</code> 越大（块越小），两者都越接近，但 PDD 始终用同样的评估次数换来更准的落点。</p>
+  </div>
+</section>
+
+<!-- ================= 8 实验 ================= -->
+<section id="s8">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 08</span>
+    <h2>实验效果：SOTA + 更好的多样性 <span class="en">/ Results</span></h2>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h4><span class="tag">IMG</span> ImageNet-256（1 NFE，FID ↓）</h4>
+      <div class="table-wrap" style="margin:10px 0">
+        <table>
+          <tr><th>方法</th><th>FID</th></tr>
+          <tr><td>Pi-Flow</td><td>2.85</td></tr>
+          <tr><td>PDD – Euler</td><td>2.73</td></tr>
+          <tr><td>PDD – Midpoint</td><td class="hl">2.69</td></tr>
+          <tr><td>FreeFlow</td><td>1.45</td></tr>
+        </table>
+      </div>
+      <p style="font-size:13.5px;color:var(--ink-3)">更简单的目标（无高斯混合、无额外网络），还支持多档 NFE。</p>
+    </div>
+    <div class="card">
+      <h4><span class="tag">T2I</span> Qwen-Image 20B（OneIG ↑，4 NFE）</h4>
+      <div class="table-wrap" style="margin:10px 0">
+        <table>
+          <tr><th>方法</th><th>OneIG</th><th>多样性</th></tr>
+          <tr><td>DMD2</td><td>0.524</td><td>0.095</td></tr>
+          <tr><td>Pi-Flow</td><td>0.533</td><td>0.182</td></tr>
+          <tr><td>PDD – Euler</td><td>0.535</td><td class="hl">0.192</td></tr>
+          <tr><td>PDD – Midpoint</td><td class="hl">0.538</td><td>0.174</td></tr>
+        </table>
+      </div>
+      <p style="font-size:13.5px;color:var(--ink-3)">DMD2 质量高但多样性只有 0.095 —— 模式坍缩的典型表现；PDD 几乎翻倍。</p>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h4><span class="tag">T2V</span> Wan2.1 14B（VBench，4 NFE）</h4>
+      <div class="table-wrap" style="margin:10px 0">
+        <table>
+          <tr><th>方法</th><th>Overall ↑</th><th>Quality ↑</th><th>多样性 ↑</th></tr>
+          <tr><td>AnyFlow</td><td class="hl">84.95</td><td>85.70</td><td>0.0786</td></tr>
+          <tr><td>rCM</td><td>84.92</td><td>85.43</td><td>—</td></tr>
+          <tr><td>DMD2</td><td>84.40</td><td>85.16</td><td>0.0568</td></tr>
+          <tr><td>PDD (short)</td><td>84.92</td><td class="hl">85.71</td><td>0.0791</td></tr>
+          <tr><td>PDD (long)</td><td>84.69</td><td>85.69</td><td class="hl">0.0846</td></tr>
+        </table>
+      </div>
+      <p style="font-size:13.5px;color:var(--ink-3)">质量分最高；多样性（V-JEPA2 两两距离）全面领先；训练仅 200–3000 迭代。</p>
+    </div>
+    <div class="card">
+      <h4><span class="tag">T2V+A</span> LTX-2.3 22B（8 NFE，10s 720p 含音频）</h4>
+      <ul class="tight">
+        <li>无数据训练仅 <strong>250 迭代</strong>，8 NFE 即达到与官方蒸馏模型相当或更好的质量。</li>
+        <li>Gemini 3.1 Pro 盲评（300 组配对对比）：PDD <strong>赢 142 / 平 35 / 输 123</strong>，四轴均分 2.62 vs 2.59。</li>
+        <li>教师需 4×30 NFE（含 CFG 等引导），PDD 只需 8 NFE。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>效果视频（来自论文项目页）</h3>
+  <div class="video-grid">
+    <div class="video-card">
+      <video autoplay muted loop playsinline controls preload="auto">
+        <source src="assets/videos/ltx_king_soldiers.mp4" type="video/mp4">
+      </video>
+      <div class="video-cap"><span class="vtag audio">LTX-2.3 · 8 NFE · 含音频</span><br>「国王与士兵列队」—— 宏大场景 + 金属碰撞声</div>
+    </div>
+    <div class="video-card">
+      <video autoplay muted loop playsinline controls preload="auto">
+        <source src="assets/videos/ltx_smiling_woman.mp4" type="video/mp4">
+      </video>
+      <div class="video-cap"><span class="vtag audio">LTX-2.3 · 8 NFE · 含音频</span><br>「森林中微笑的年轻女子」—— 环境音 + 呼吸感</div>
+    </div>
+    <div class="video-card">
+      <video autoplay muted loop playsinline controls preload="auto">
+        <source src="assets/videos/ltx_angry_argument.mp4" type="video/mp4">
+      </video>
+      <div class="video-cap"><span class="vtag audio">LTX-2.3 · 8 NFE · 含音频</span><br>「愤怒争吵」—— 情绪张力 + 台词对白</div>
+    </div>
+    <div class="video-card">
+      <video autoplay muted loop playsinline controls preload="auto">
+        <source src="assets/videos/wan_boxing_cats.mp4" type="video/mp4">
+      </video>
+      <div class="video-cap"><span class="vtag wan">Wan2.1 14B · 4 NFE</span><br>「拳击擂台上的黑猫与白猫」—— 高速对打</div>
+    </div>
+    <div class="video-card">
+      <video autoplay muted loop playsinline controls preload="auto">
+        <source src="assets/videos/wan_bird_church.mp4" type="video/mp4">
+      </video>
+      <div class="video-cap"><span class="vtag wan">Wan2.1 14B · 4 NFE</span><br>「巨鸟飞向哥特教堂」—— 运镜 + 运动连贯</div>
+    </div>
+    <div class="video-card">
+      <video autoplay muted loop playsinline controls preload="auto">
+        <source src="assets/videos/wan_swing_child.mp4" type="video/mp4">
+      </video>
+      <div class="video-cap"><span class="vtag wan">Wan2.1 14B · 4 NFE</span><br>「秋千上的孩童」—— 摆动幅度与运动量</div>
+    </div>
+  </div>
+  <p style="font-size:13.5px;color:var(--ink-3)">
+    官方对比页面还展示了 PDD 相对 DMD2 / AnyFlow 在相同提示、相同噪声下的生成 —— PDD 的运动量和帧间一致性明显更好（LTX 视频请点击播放器取消静音听声音）。
+  </p>
+</section>
+
+<!-- ================= 9 对比 ================= -->
+<section id="s9">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 09</span>
+    <h2>与相关工作对比 <span class="en">/ Positioning</span></h2>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th style="width:200px"></th>
+        <th>Flow Maps（Eulerian / Lagrangian）</th>
+        <th>Pi-Flow</th>
+        <th><b class="hl">PDD（本文）</b></th>
+      </tr>
+      <tr><td>蒸馏对象</td><td>任意两时刻的平均速度</td><td>连续时间瞬时速度 v</td><td>离散区间的平均速度 u</td></tr>
+      <tr><td>NFE 可变性</td><td>可变</td><td>固定</td><td class="hl">可变（训练时随机块大小）</td></tr>
+      <tr><td>JVP / 有限差分</td><td>需要</td><td>免</td><td class="hl">免</td></tr>
+      <tr><td>推理时的头</td><td>线性</td><td>高斯混合</td><td class="hl">融合线性（与教师同代价）</td></tr>
+      <tr><td>额外网络 / 多阶段</td><td>—</td><td>策略头</td><td class="hl">无，单阶段</td></tr>
+    </table>
+  </div>
+  <p>
+    PDD 与 Pi-Flow 最接近，但把「连续时间 + 高斯混合策略头 + 固定 NFE」简化成「离散时间 + 可融合线性头 + 可变 NFE」；
+    与 Lagrangian flow maps 的联系在于：对 flow map 损失关于 s 积分，就得到 PDD-like 目标 —— 但 PDD 不需要回归位移的导数（无需 JVP）。
+  </p>
+</section>
+
+<!-- ================= 10 局限 ================= -->
+<section id="s10">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 10</span>
+    <h2>局限与未来方向 <span class="en">/ Limitations</span></h2>
+  </div>
+  <div class="insight warn">
+    <div class="ttl">⚠️ 已知局限</div>
+    <ul class="tight">
+      <li><strong>8-NFE 反直觉退化</strong>：ImageNet 上 NFE=8 的 FID 反而变差 —— 作者归因于 guidance scale 与档位错配（每档 NFE 各有最优引导强度）。</li>
+      <li><strong>训练期显存</strong>：训练时最后一层是 N 倍宽的（虽然相对 backbone 占比小），大模型上仍是工程取舍。</li>
+      <li><strong>超参敏感点</strong>：时间重参数化（shift）与 batch size 最关键，Midpoint 一致优于 Euler（代价是 2 次教师推理）。</li>
+      <li><strong>数据依赖设置</strong>：大规模实验走的是 data-free 路线；带数据的蒸馏（如 ImageNet）之外仍是未来工作。</li>
+    </ul>
+  </div>
+  <div class="insight">
+    <div class="ttl">🚀 未来方向（论文提出）</div>
+    <ul class="tight">
+      <li><strong>自适应块大小</strong>：块大小可在评估后再选 —— 用 verifier / 置信度判据决定每步跳多远。</li>
+      <li><strong>推广到离散自回归模型</strong>：把「并行解码」原则扩展到非扩散类生成模型。</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p><strong>资料来源</strong></p>
+    <p>
+      · 论文：Shaul, Liu, Vahdat, Berner. <em>Parallel Decoding Distillation for Fast Image and Video Generation</em>（arXiv:2607.26004）·
+      <a href="https://arxiv.org/abs/2607.26004" target="_blank" rel="noopener">arXiv</a> ·
+      <a href="https://research.nvidia.com/labs/genair/pdd/" target="_blank" rel="noopener">项目主页</a> ·
+      <a href="https://github.com/NVlabs/fastgen" target="_blank" rel="noopener">GitHub</a>
+    </p>
+    <p style="margin-top:6px">页面中的 SVG 示意图、动画与演示视频均来自 NVIDIA GenAI Research 官方项目页；交互演示为本页自制的二维玩具流可视化（螺旋流场，教师=细积分，PDD=块平均速度弦步，对比=起点瞬时速度大步）。公式由 KaTeX 本地渲染，本页完全离线可用。</p>
+  </div>
+</footer>
+
+<script src="assets/katex/katex.min.js"></script>
+<script src="assets/katex/contrib/auto-render.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    try {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '\\(', right: '\\)', display: false }
+        ],
+        throwOnError: false
+      });
+    } catch (e) { console.warn('KaTeX init failed', e); }
+  });
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- canvas setup ---------- */
+  var canvas = document.getElementById('demoCanvas');
+  var ctx = canvas.getContext('2d');
+  var CW = 760, CH = 520;
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = CW * dpr;
+  canvas.height = CH * dpr;
+  canvas.style.width = CW + 'px';
+  canvas.style.height = CH + 'px';
+  ctx.scale(dpr, dpr);
+
+  var PAD = 48;
+  var plot = { x: PAD, y: PAD, w: CW - 2 * PAD, h: CH - 2 * PAD };
+  function toCanvas(p) { return { x: plot.x + p.x * plot.w, y: plot.y + (1 - p.y) * plot.h }; }
+
+  /* ---------- trajectory (spiral) ---------- */
+  var C = { x: 0.5, y: 0.5 };
+  function makeTraj(seed) {
+    var dTh = 1.4 * Math.PI, r0 = 0.38, r1 = 0.12;
+    var theta0 = -Math.PI / 2 + 0.25 + (seed % 7) * 0.22;
+    function X(t) {
+      var r = r0 + (r1 - r0) * t;
+      var th = theta0 + dTh * t;
+      return { x: C.x + r * Math.cos(th), y: C.y + r * Math.sin(th) };
+    }
+    function V(t) {
+      var e = 1e-5;
+      var a = X(t), b = X(t + e);
+      return { x: (b.x - a.x) / e, y: (b.y - a.y) / e };
+    }
+    return { X: X, V: V, seed: seed };
+  }
+
+  var N = 64;             // grid intervals
+  var M = 4;              // NFE (number of blocks)
+  var traj = makeTraj(0);
+  var blk = 0;            // current block index (0..M)
+  var playing = false;
+  var blockT0 = 0;        // timestamp when current block started
+  var BLOCK_MS = 1500;    // animation duration per block
+
+  var SHOW = { teacher: true, euler: true, sub: true };
+
+  /* ---------- helpers ---------- */
+  function drawArrow(x1, y1, x2, y2, color, width, alpha, headLen) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    var dx = x2 - x1, dy = y2 - y1;
+    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var ux = dx / len, uy = dy / len;
+    var h = headLen || 7;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    var bx = x2 - ux * h, by = y2 - uy * h;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(bx - uy * h * 0.45, by + ux * h * 0.45);
+    ctx.lineTo(bx + uy * h * 0.45, by - ux * h * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPath(pts, color, width, dash, alpha) {
+    if (pts.length < 2) return;
+    ctx.save();
+    ctx.globalAlpha = alpha == null ? 1 : alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dash || []);
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach(function (p, i) {
+      var c = toCanvas(p);
+      if (i === 0) ctx.moveTo(c.x, c.y); else ctx.lineTo(c.x, c.y);
+    });
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function dot(p, color, r) {
+    var c = toCanvas(p);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  function ring(p, color, r, alpha) {
+    var c = toCanvas(p);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ---------- main render ---------- */
+  function render(now) {
+    ctx.clearRect(0, 0, CW, CH);
+
+    // plot frame
+    ctx.strokeStyle = '#20293a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(plot.x, plot.y, plot.w, plot.h);
+
+    // axis labels
+    ctx.fillStyle = '#5c6a80';
+    ctx.font = '12px ui-monospace, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('t = 0（噪声）', plot.x, plot.y + plot.h + 22);
+    ctx.fillText('t = 1（数据）', plot.x + plot.w, plot.y + plot.h + 22);
+    ctx.fillText('X₀', plot.x - 14, plot.y + plot.h - (traj.X(0).y) * plot.h + 4);
+
+    var L = N / M;
+    var X = traj.X;
+
+    // 1) teacher exact trajectory (fine integration)
+    if (SHOW.teacher) {
+      var tpts = [];
+      for (var i = 0; i <= 240; i++) tpts.push(X(i / 240));
+      drawPath(tpts, '#4d5f78', 1.6, [6, 5], 0.85);
+    }
+
+    // 2) naive big-step Euler (instantaneous velocity at block starts)
+    if (SHOW.euler) {
+      var epts = [];
+      var ex = X(0);
+      epts.push({ x: ex.x, y: ex.y });
+      for (var j = 0; j < M; j++) {
+        var vv = traj.V(j / M);
+        ex = { x: ex.x + vv.x / M, y: ex.y + vv.y / M };
+        epts.push({ x: ex.x, y: ex.y });
+      }
+      drawPath(epts, '#ef5350', 2, [4, 4], 0.9);
+    }
+
+    // completed PDD blocks
+    for (var b = 0; b < blk; b++) {
+      var pa = X(b / M), pb = X((b + 1) / M);
+      drawPath([pa, pb], '#76b900', 3, null, 1);
+    }
+    // vertices so far
+    for (var v = 0; v <= blk; v++) dot(X(v / M), '#e8eef5', 3.4);
+
+    // current block animation
+    if (blk < M) {
+      var t0 = blk / M, t1 = (blk + 1) / M;
+      var prog = Math.min(1, (now - blockT0) / BLOCK_MS);
+      var n0 = Math.round(blk * L), n1 = n0 + L;
+
+      // sub-interval directions revealed sequentially (one evaluation => L directions)
+      if (SHOW.sub) {
+        var shown = Math.max(0, Math.floor(prog * L));
+        for (var k = 0; k < shown; k++) {
+          var sk = n0 + k;
+          var sA = X(sk / N), sB = X((sk + 1) / N);
+          drawArrow(toCanvas(sA).x, toCanvas(sA).y, toCanvas(sB).x, toCanvas(sB).y, '#2fa98f', 1.8, 0.95, 5);
+        }
+      }
+
+      // fused (block-average) direction + block segment snap at end
+      var aA = X(t0), aB = X(t1);
+      if (prog >= 1) {
+        drawPath([aA, aB], '#76b900', 3, null, 1);
+        dot(aB, '#e8eef5', 3.4);
+      } else {
+        // show the fused direction arrow once sub-arrows are mostly revealed
+        if (prog > 0.55) {
+          var amp = (prog - 0.55) / 0.45;
+          var mx = aA.x + (aB.x - aA.x) * amp, my = aA.y + (aB.y - aA.y) * amp;
+          drawArrow(toCanvas(aA).x, toCanvas(aA).y, toCanvas(mx).x, toCanvas(my).y, '#e8a33d', 3, 1, 8);
+        }
+        ring(aA, '#e8a33d', 11 + 4 * Math.sin((now - blockT0) / 130), 0.9);
+      }
+
+      // evaluation point label
+      var cP = toCanvas(aA);
+      ctx.fillStyle = '#e8a33d';
+      ctx.font = 'bold 13px ui-monospace, Menlo, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('评估 #' + (blk + 1), cP.x + 12, cP.y - 12);
+    }
+
+    // start / end markers
+    dot(X(0), '#8ab4ff', 4.5);
+    dot(X(1), '#ff8a7a', 4.5);
+
+    // status
+    if (blk >= M) {
+      ctx.fillStyle = '#76b900';
+      ctx.font = 'bold 15px ui-monospace, Menlo, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('✔ 采样完成：' + M + ' 次网络评估，每次推进 ' + L + ' 个区间', plot.x, plot.y - 14);
+    }
+  }
+
+  /* ---------- controls ---------- */
+  function reset() {
+    blk = 0;
+    blockT0 = performance.now();
+    updateInfo();
+  }
+  function updateInfo() {
+    var L = N / M;
+    document.getElementById('demoInfo').textContent =
+      '网格 N=' + N + ' · NFE=' + M + ' · 块大小 L=' + L +
+      ' → 每次网络评估推进 ' + L + ' 个区间，共 ' + M + ' 次评估' +
+      '（教师：240 次微步精确积分；朴素 Euler：' + M + ' 次瞬时速度大步）';
+  }
+
+  var playBtn = document.getElementById('playBtn');
+  function stepOnce() {
+    if (blk >= M) return;
+    blockT0 = 0; // snap to full so the block completes instantly
+    blk++;
+    if (blk >= M) playing = false;
+    updatePlayBtn();
+  }
+
+  function updatePlayBtn() {
+    playBtn.textContent = playing ? '⏸ 暂停' : '▶ 播放';
+  }
+
+  playBtn.addEventListener('click', function () {
+    if (blk >= M) { reset(); }
+    playing = !playing;
+    if (playing) blockT0 = performance.now();
+    updatePlayBtn();
+  });
+
+  document.getElementById('stepBtn').addEventListener('click', function () {
+    playing = false;
+    updatePlayBtn();
+    stepOnce();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    playing = false;
+    updatePlayBtn();
+    reset();
+  });
+
+  document.getElementById('seedBtn').addEventListener('click', function () {
+    traj = makeTraj(Math.floor(Math.random() * 100000));
+    playing = false;
+    updatePlayBtn();
+    reset();
+  });
+
+  document.getElementById('nfeSel').addEventListener('change', function (e) {
+    M = parseInt(e.target.value, 10);
+    playing = false;
+    updatePlayBtn();
+    reset();
+  });
+
+  document.getElementById('chkTeacher').addEventListener('change', function (e) { SHOW.teacher = e.target.checked; });
+  document.getElementById('chkEuler').addEventListener('change', function (e) { SHOW.euler = e.target.checked; });
+  document.getElementById('chkSub').addEventListener('change', function (e) { SHOW.sub = e.target.checked; });
+
+  /* ---------- animation loop ---------- */
+  function loop(now) {
+    if (playing) {
+      if (blk >= M) {
+        playing = false;
+        updatePlayBtn();
+      } else if (now - blockT0 >= BLOCK_MS) {
+        blk++;
+        blockT0 = now;
+        if (blk >= M) {
+          playing = false;
+          updatePlayBtn();
+        }
+      }
+    }
+    render(now);
+    requestAnimationFrame(loop);
+  }
+
+  reset();
+  updatePlayBtn();
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>

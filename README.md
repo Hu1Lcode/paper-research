@@ -39,3 +39,12 @@ Robbyant 面向具身智能的稀疏 MoE 视频基础模型调研：
 - 内容：任务统一单流 Diffusion Transformer、DeepSeekMoE 风格稀疏 MoE（13B/1.4B 激活，可扩至 120B）、级联 Refiner、六维奖励 GRPO、负样本感知微调、动作条件世界模型 A2V
 - 来源：论文 [*Scaling Mixture-of-Experts Video Pretraining for Embodied Intelligence*](https://arxiv.org/abs/2607.07675)（arXiv:2607.07675）
 - 配图：`lingbot-video/assets/`
+
+### 5. [PDD](pdd/)
+
+NVIDIA GenAI Research 的轨迹式蒸馏方法（并行解码蒸馏）调研：
+
+- [PDD-架构与创新点详解.md](pdd/PDD-架构与创新点详解.md)
+- 内容：并行解码（一次评估推进 L 个区间）、PD loss（纯回归 on-policy，无 VSD/GAN/JVP）、N 线性头训练 + 推理层融合、一个模型多档 NFE、data-free 训练、4–8 NFE SOTA 与多样性保留
+- 来源：论文 [*Parallel Decoding Distillation for Fast Image and Video Generation*](https://arxiv.org/abs/2607.26004)（arXiv:2607.26004）与 [项目主页](https://research.nvidia.com/labs/genair/pdd/)
+- 配图：`pdd/assets/`；**可交互演示网页（含效果视频）：`pdd/web/index.html`**（clone 后浏览器打开，离线可用）
