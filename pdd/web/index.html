@@ -265,7 +265,8 @@
   <a href="#s7">交互演示</a>
   <a href="#s8">实验效果</a>
   <a href="#s9">对比</a>
-  <a href="#s10">局限</a>
+  <a href="#s10">DMD2 对比</a>
+  <a href="#s11">局限</a>
 </nav>
 
 <header>
@@ -707,10 +708,111 @@
   </p>
 </section>
 
-<!-- ================= 10 局限 ================= -->
+<!-- ================= 10 对比学习 DMD2 ================= -->
 <section id="s10">
   <div class="sec-head">
     <span class="sec-num">SECTION 10</span>
+    <h2>对比学习：DMD2 —— 分布式蒸馏的代表作 <span class="en">/ DMD2 vs PDD</span></h2>
+  </div>
+  <p class="sec-lead">
+    把 PDD 讲透之后，最好的对照样本就是 <strong>DMD2</strong>（Improved Distribution Matching Distillation，Yin et al.，MIT × Adobe，NeurIPS 2024 Oral）——
+    它是分布式路线的集大成者，也是 PDD 论文里的主要基线。两者代表了蒸馏的两种哲学：<strong>匹配分布 vs 复刻轨迹</strong>。
+  </p>
+
+  <div class="card">
+    <h4><span class="tag" style="background:#6b5ea8">DMD2</span> 一句话理解</h4>
+    <p>不要求学生复刻教师的采样路径，只要求<strong>学生输出的分布 = 教师输出的分布</strong>。做法：最小化两者加噪后的近似 KL 散度，
+    其梯度恰好等于<strong>两个 score 函数之差</strong>——一个来自冻结的教师（建模真实分布），一个是在线训练的「假样本 critic」（建模学生输出分布）：</p>
+    <p class="eq">$$\nabla\mathcal{L}_{\mathrm{DMD}} \;=\; -\,\mathbb{E}_{t}\Big[\big(s_{\mathrm{real}}(F(G_\theta(z),t),t) - s_{\mathrm{fake}}(F(G_\theta(z),t),t)\big)\tfrac{\partial G_\theta(z)}{\partial\theta}\Big]$$</p>
+    <p>学生被「score 差」这股力不断推向真实数据分布——它不知道教师的路径长什么样，只关心<strong>终点分布对不对</strong>。</p>
+  </div>
+
+  <h3>DMD2 的三板斧（相对 DMD1）</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <h4>去掉回归损失</h4>
+      <p>DMD1 需要教师用完整采样链预计算百万级「噪声–图像对」做回归正则——贵，且把学生质量上限锁死在教师。DMD2 彻底移除。</p>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <h4>TTUR 双时间尺度</h4>
+      <p>去掉回归损失后训练不稳，作者诊断出根因：fake critic 对学生输出分布的估计不准。解法：每次生成器更新，fake score 网络<strong>更新 5 次</strong>。</p>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <h4>GAN 头 + 多步生成</h4>
+      <p>加一个判别器区分学生样本与<strong>真实图像</strong>，弥补教师 score 的近似误差；配合 backward simulation（训练时模拟推理式多步输入）支持 4 步生成。</p>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card" style="background:#fff">
+      <h4><span class="tag" style="background:#6b5ea8">成绩</span> DMD2 的高光</h4>
+      <ul class="tight">
+        <li>ImageNet-64 <strong>1 步 FID 1.28</strong>、COCO 2014 zero-shot FID 8.35（4 步 SDXL），<strong>超过教师</strong>而推理成本降 500×</li>
+        <li>人类偏好分数高——在 Qwen-Image 蒸馏版（Lightning-v2）上 HPSv2 / PickScore 领先 PDD</li>
+        <li>成为视频蒸馏的默认组件：FastGen、rCM、AnyFlow 等都以 VSD/DMD 为核心损失</li>
+      </ul>
+    </div>
+    <div class="card" style="background:#fff">
+      <h4><span class="tag" style="background:#d9534f">代价</span> DMD2 的痛点</h4>
+      <ul class="tight">
+        <li><strong>三个网络</strong>：学生 + fake critic + GAN 判别头，显存和工程复杂度高</li>
+        <li><strong>交替优化</strong>（G ↔ fake score ↔ D），超参敏感，训练曲线波动</li>
+        <li><strong>模式坍缩</strong>：分布级对齐不约束「逐样本」行为 → 多样性显著下降，视频上表现为运动少甚至静止</li>
+        <li>NFE 固定：每个步数档位要单独蒸馏一个模型</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>正面对比：DMD2 vs PDD</h3>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th style="width:150px"></th>
+        <th>DMD2（分布式）</th>
+        <th><b class="hl">PDD（轨迹式）</b></th>
+      </tr>
+      <tr><td>学习目标</td><td>匹配输出<strong>分布</strong>（近似 KL）</td><td>回归教师 <strong>ODE 步</strong>（MSE）</td></tr>
+      <tr><td>监督信号</td><td>score 差 <code>s_real − s_fake</code></td><td>教师在学生状态处的<strong>平均速度</strong></td></tr>
+      <tr><td>额外网络</td><td>fake critic + GAN 判别头</td><td class="hl">无（教师 + 学生）</td></tr>
+      <tr><td>训练数据</td><td>GAN 头需要真实图像</td><td class="hl">可完全 data-free</td></tr>
+      <tr><td>优化方式</td><td>交替 / 对抗，超参敏感</td><td class="hl">单一回归，稳定收敛</td></tr>
+      <tr><td>NFE 灵活性</td><td>固定（每档单独训练）</td><td class="hl">一个模型多档 2/4/8</td></tr>
+      <tr><td>训练成本构成</td><td>G 更新 + 5×fake critic 更新 + D 更新</td><td class="hl">1 次学生 + 1~2 次教师推理</td></tr>
+      <tr><td>单步 FID（ImageNet-64 / 256）</td><td class="hl">1.28（64×64，SOTA）</td><td>2.69（256×256，SiT-XL）</td></tr>
+      <tr><td>多样性（OneIG，Qwen 4-NFE）</td><td>0.095</td><td class="hl">0.192（≈2 倍）</td></tr>
+      <tr><td>视频多样性（Wan 14B，V-JEPA2）</td><td>0.0568</td><td class="hl">0.0846（long）</td></tr>
+      <tr><td>视频运动量</td><td>偏少，易静止</td><td class="hl">显著更多（VBench 动态度更高）</td></tr>
+    </table>
+  </div>
+  <p style="font-size:13.5px;color:var(--ink-3)">
+    注：FID 一行两者基准不同（DMD2 用 ImageNet-64，PDD 用 ImageNet-256 SiT-XL），数字不可直接横比，仅示意各自量级；多样性 / 运动数据来自 PDD 论文的同基准复评，可直接对比。
+  </p>
+
+  <div class="insight">
+    <div class="ttl">💡 为什么 DMD2 会「坍缩」而 PDD 不会？</div>
+    <p>分布匹配只约束「整体分布像不像」——学生把概率质量集中在少数几个「安全」的高分模式上，KL 依然可以很低，
+    于是同一提示下不同噪声的输出趋于雷同（图像上 = 姿势雷同，视频上 = 运动消失）。轨迹式回归则约束「每个噪声到数据的映射都和教师一致」，
+    教师分布的多样性被<strong>逐点搬运</strong>到学生，所以 PDD 的多样性与运动量天然接近教师。代价是：轨迹式方法对「分布级瑕疵」更宽容——
+    教师如果差，学生跟着差；这正是 DMD2 用 GAN 头「超越教师」的空间。</p>
+  </div>
+
+  <div class="insight warn">
+    <div class="ttl">⚖️ 什么时候选谁？</div>
+    <ul class="tight">
+      <li><strong>选 DMD2 系</strong>：追求极致单步质量与人类偏好（成品图 / 营销图）；有真实数据；能承受多网络训练工程。</li>
+      <li><strong>选 PDD</strong>：要保多样性与运动（视频 / 世界模型）；想要训练简单稳定、一模型多档 NFE、或根本没有数据。</li>
+      <li><strong>领域趋势</strong>：rCM、AnyFlow 等用「VSD + 轨迹项」混合正则——而 PDD 证明纯轨迹回归也能打平，方向上在往「简单、稳、便宜」收敛。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= 11 局限 ================= -->
+<section id="s11">
+  <div class="sec-head">
+    <span class="sec-num">SECTION 11</span>
     <h2>局限与未来方向 <span class="en">/ Limitations</span></h2>
   </div>
   <div class="insight warn">
