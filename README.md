@@ -48,3 +48,12 @@ NVIDIA GenAI Research 的轨迹式蒸馏方法（并行解码蒸馏）调研：
 - 内容：并行解码（一次评估推进 L 个区间）、PD loss（纯回归 on-policy，无 VSD/GAN/JVP）、N 线性头训练 + 推理层融合、一个模型多档 NFE、data-free 训练、4–8 NFE SOTA 与多样性保留
 - 来源：论文 [*Parallel Decoding Distillation for Fast Image and Video Generation*](https://arxiv.org/abs/2607.26004)（arXiv:2607.26004）与 [项目主页](https://research.nvidia.com/labs/genair/pdd/)
 - 配图：`pdd/assets/`；**可交互演示网页（含效果视频）：`pdd/web/index.html`**（clone 后浏览器打开，离线可用）
+
+### 6. [Atlas](atlas/)
+
+World Labs 新一代全模态世界模型（空间智能）调研：
+
+- [Atlas-架构与创新点详解.md](atlas/Atlas-架构与创新点详解.md)
+- 内容：多模态自回归扩散 Transformer、空间上下文（Spatial Context，图像锚定 3D 位置）、相机位姿原生输入、稀疏视角重建 + 3D Gaussian Splats 输出、1440p/1 分钟长视频、Real-to-Sim 机器人仿真、缩放叙事；附两大基准（相机控制人评 75–94%、点图重建 AbsRel 领先 5 个专门模型）
+- 来源：官方博客 [*Atlas: A World Model for Spatial Intelligence*](https://www.worldlabs.ai/blog/atlas)（2026-09-01，暂无论文）
+- 配图：`atlas/assets/`

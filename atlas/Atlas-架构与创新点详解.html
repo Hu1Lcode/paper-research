@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atlas：架构与创新点详解</title>
+<style>
+  :root {
+    --accent: #4f46e5;
+    --accent-dark: #4338ca;
+    --accent-soft: #eef2ff;
+    --text: #1f2937;
+    --text-light: #6b7280;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --quote-bg: #f5f5ff;
+    --quote-border: #4f46e5;
+    --code-bg: #f1f5f9;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.85;
+    font-size: 16px;
+  }
+  .layout {
+    display: flex;
+    max-width: 1280px;
+    margin: 0 auto;
+    gap: 32px;
+    padding: 0 24px;
+  }
+  /* ---------- TOC sidebar ---------- */
+  nav.toc {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    width: 268px;
+    flex-shrink: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 32px 0;
+    font-size: 13.5px;
+  }
+  nav.toc .toc-title {
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 12px;
+    letter-spacing: .05em;
+  }
+  nav.toc a {
+    display: block;
+    color: var(--text-light);
+    text-decoration: none;
+    padding: 4px 10px;
+    border-left: 2px solid transparent;
+    border-radius: 0 6px 6px 0;
+    transition: all .15s ease;
+  }
+  nav.toc a:hover { color: var(--accent); background: var(--accent-soft); }
+  nav.toc a.sub { padding-left: 26px; font-size: 12.5px; }
+  @media (max-width: 960px) {
+    nav.toc { display: none; }
+  }
+  /* ---------- Main ---------- */
+  main {
+    flex: 1;
+    min-width: 0;
+    max-width: 880px;
+    padding: 32px 0 80px;
+  }
+  header.hero {
+    background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 60%, #6366f1 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 44px 40px 38px;
+    margin-bottom: 36px;
+    box-shadow: 0 10px 30px rgba(67, 56, 202, .3);
+  }
+  header.hero h1 {
+    margin: 0 0 10px;
+    font-size: 30px;
+    line-height: 1.35;
+    letter-spacing: .01em;
+  }
+  header.hero .subtitle {
+    font-size: 15px;
+    opacity: .92;
+    margin-bottom: 18px;
+  }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge {
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.28);
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    backdrop-filter: blur(4px);
+  }
+  .source-note {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--text-light);
+    margin-bottom: 34px;
+  }
+  .source-note a { color: var(--accent); text-decoration: none; }
+  .source-note a:hover { text-decoration: underline; }
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 30px 34px;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  h2 {
+    font-size: 22px;
+    margin: 0 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent-soft);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  h3 {
+    font-size: 17.5px;
+    margin: 28px 0 12px;
+    color: #0f172a;
+  }
+  h3::before {
+    content: "";
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 2px;
+    margin-right: 8px;
+    transform: rotate(45deg);
+  }
+  h4 { font-size: 15.5px; margin: 20px 0 8px; color: #334155; }
+  p { margin: 10px 0; }
+  a { color: var(--accent-dark); }
+  strong { color: #0f172a; }
+  ul, ol { padding-left: 24px; margin: 10px 0; }
+  li { margin: 5px 0; }
+  /* ---------- blockquote ---------- */
+  blockquote {
+    margin: 16px 0;
+    padding: 14px 20px;
+    background: var(--quote-bg);
+    border-left: 4px solid var(--quote-border);
+    border-radius: 0 10px 10px 0;
+    font-size: 14.5px;
+    color: #334155;
+  }
+  blockquote p { margin: 6px 0; }
+  blockquote .en { font-style: italic; color: #475569; }
+  /* ---------- table ---------- */
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: #fff;
+  }
+  th {
+    background: #f1f5f9;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+    color: #0f172a;
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: var(--accent-soft); }
+  td.hl, th.hl { color: var(--accent-dark); font-weight: 700; }
+  /* ---------- figure ---------- */
+  figure {
+    margin: 22px 0;
+    text-align: center;
+  }
+  figure img {
+    max-width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(30, 27, 75, .1);
+  }
+  figcaption {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-light);
+    text-align: left;
+    background: #fafbfc;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    line-height: 1.7;
+  }
+  figcaption b { color: #334155; }
+  /* ---------- misc ---------- */
+  code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 13.5px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    color: #0f172a;
+  }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  pre code { background: none; border: none; color: inherit; padding: 0; }
+  .callout {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 14px;
+    margin: 14px 0;
+  }
+  .callout b { color: #92400e; }
+  .pillar-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 18px 0; }
+  .pillar-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+  }
+  .pillar-card .tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-dark);
+    background: var(--accent-soft);
+    border-radius: 6px;
+    padding: 2px 10px;
+    margin-bottom: 8px;
+  }
+  .pillar-card h4 { margin: 4px 0 8px; }
+  .pillar-card p { font-size: 13.5px; color: var(--text-light); margin: 4px 0; }
+  .back-top {
+    position: fixed;
+    right: 26px; bottom: 26px;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none;
+    font-size: 18px;
+    box-shadow: 0 6px 16px rgba(79, 70, 229, .35);
+    opacity: .85;
+    transition: opacity .2s;
+  }
+  .back-top:hover { opacity: 1; }
+  footer {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 13px;
+    padding: 24px 0 40px;
+  }
+</style>
+</head>
+<body id="top">
+<div class="layout">
+
+<!-- ============ TOC ============ -->
+<nav class="toc">
+  <div class="toc-title">目录</div>
+  <a href="#sec1">1. 模型概览</a>
+  <a href="#sec2">2. 背景与定位</a>
+  <a href="#sec3">3. 核心架构</a>
+  <a class="sub" href="#sec3-1">3.1 Multimodal</a>
+  <a class="sub" href="#sec3-2">3.2 Autoregressive</a>
+  <a class="sub" href="#sec3-3">3.3 Diffusion</a>
+  <a class="sub" href="#sec3-4">3.5 双路线红利</a>
+  <a href="#sec4">4. 空间上下文</a>
+  <a href="#sec5">5. 四大能力</a>
+  <a class="sub" href="#sec5-1">5.1 相机控制生成</a>
+  <a class="sub" href="#sec5-2">5.2 空间重建</a>
+  <a class="sub" href="#sec5-3">5.3 时空模拟</a>
+  <a class="sub" href="#sec5-4">5.4 图像生成</a>
+  <a href="#sec6">6. 评测结果</a>
+  <a href="#sec7">7. 模型缩放</a>
+  <a href="#sec8">8. 产品化与开放</a>
+  <a href="#sec9">9. 已知局限</a>
+  <a href="#sec10">10. 参考资料</a>
+</nav>
+
+<!-- ============ MAIN ============ -->
+<main>
+
+<header class="hero">
+  <h1>Atlas：架构与创新点详解</h1>
+  <div class="subtitle">Atlas: A World Model for Spatial Intelligence · World Labs 新一代全模态世界模型调研</div>
+  <div class="badges">
+    <span class="badge">worldlabs.ai · 2026-09-01</span>
+    <span class="badge">多模态自回归扩散 Transformer</span>
+    <span class="badge">Spatial Context 空间上下文</span>
+    <span class="badge">1440p · 最长 1 分钟</span>
+    <span class="badge">3D Gaussian Splats 输出</span>
+    <span class="badge">从零预训练</span>
+  </div>
+</header>
+
+<div class="source-note">
+  📌 本文整理自 World Labs 官方博客 <a href="https://www.worldlabs.ai/blog/atlas" target="_blank">《Atlas: A World Model for Spatial Intelligence》</a>（2026-09-01）。重点聚焦模型架构与创新点，内容仅围绕 Atlas 本身。截至撰写时 World Labs 尚未发布配套技术论文与模型权重，架构细节以官方博客披露为准。
+</div>
+
+<!-- ============ 1 ============ -->
+<section id="sec1">
+  <h2><span class="num">1</span>模型概览</h2>
+  <div class="table-wrap">
+  <table>
+    <tbody>
+      <tr><td style="width:32%"><b>模型名称</b></td><td>Atlas</td></tr>
+      <tr><td><b>发布方</b></td><td><a href="https://www.worldlabs.ai/" target="_blank">World Labs</a>（"空间智能"方向代表公司）</td></tr>
+      <tr><td><b>发布时间</b></td><td>2026 年 9 月 1 日（官方博客）</td></tr>
+      <tr><td><b>模型类型</b></td><td><b>全模态（Omni）世界模型</b>，面向空间智能（Spatial Intelligence）</td></tr>
+      <tr><td><b>架构</b></td><td><b>多模态自回归扩散 Transformer</b>（multimodal autoregressive diffusion transformer）</td></tr>
+      <tr><td><b>原生模态</b></td><td>文本、图像、<b>相机位姿</b>、<b>3D 深度图</b>（视频 = 图像序列）</td></tr>
+      <tr><td><b>训练方式</b></td><td><b>从零预训练</b>（pretrained from scratch），大规模多模态语料</td></tr>
+      <tr><td><b>核心机制</b></td><td>所有输入统一进入<b>空间上下文（Spatial Context）</b>——每张图像锚定在 3D 空间位置上</td></tr>
+      <tr><td><b>四大能力</b></td><td>相机控制生成（1440p / 最长 1 分钟）、稀疏视角 3D 重建、时空模拟（Real-to-Sim）、图像 / 360 全景生成</td></tr>
+      <tr><td><b>开放情况</b></td><td><b>早期访问制</b>（early access，面向选定合作伙伴）；将驱动 Marble 后续版本</td></tr>
+      <tr><td><b>配套论文</b></td><td>暂无（博客提供 <code>@article</code> 引用格式）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <figure>
+    <img src="assets/hero-banner.webp" alt="Atlas 官方主视觉">
+    <figcaption><b>Atlas 官方博客主视觉。</b>（来源：<a href="https://www.worldlabs.ai/blog/atlas" target="_blank">worldlabs.ai/blog/atlas</a>）</figcaption>
+  </figure>
+  <p><b>官方摘要</b>（原文引用）：</p>
+  <blockquote>
+    <p class="en">"Today we are introducing Atlas, our next-generation world model. Atlas is an omni model that we pretrained from scratch to natively operate on text, images, video, and 3D. It is a multimodal autoregressive diffusion transformer: all inputs are combined into a shared spatial context. Atlas uses that context to generate what comes next, staying consistent in 3D with everything it has seen and imagining what lies beyond it. Atlas is built to scale: its performance improves with increased training compute, and we expect this trend to hold as we continue scaling."</p>
+  </blockquote>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="sec2">
+  <h2><span class="num">2</span>背景与定位</h2>
+  <p>World Labs 对世界模型的定义：</p>
+  <blockquote>
+    <p class="en">"World models generate, reconstruct, and simulate any possible world. They understand how worlds appear, behave, and evolve — so that we can render imagined worlds for creative users, simulate the real world in high fidelity, and help robots plan actions."</p>
+  </blockquote>
+  <p>Atlas 的定位是<b>通用（general purpose）世界模型</b>，一个模型覆盖三大类任务：</p>
+  <div class="pillar-cards">
+    <div class="pillar-card">
+      <span class="tag">Generation</span>
+      <h4>世界生成</h4>
+      <p>从文本 / 图像生成想象中的新世界</p>
+    </div>
+    <div class="pillar-card">
+      <span class="tag">Reconstruction</span>
+      <h4>世界重建</h4>
+      <p>从稀疏真实观测重建真实世界（新视角合成 + 显式 3D）</p>
+    </div>
+    <div class="pillar-card">
+      <span class="tag">Simulation</span>
+      <h4>世界模拟</h4>
+      <p>建模世界随时间的演化，服务机器人规划与 Real-to-Sim</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="sec3">
+  <h2><span class="num">3</span>核心架构：多模态自回归扩散 Transformer</h2>
+  <p>官方明确表示，这需要<b>同时跳出 LLM 与视频模型的标准架构</b>，为"未来世界模型的基础架构"重新设计：</p>
+  <blockquote>
+    <p class="en">"These goals require us to <b>depart from standard architectures used by both LLMs and video models</b>, and design a new base architecture to serve as the foundation of future world models."</p>
+  </blockquote>
+
+  <h3 id="sec3-1">3.1 Multimodal（多模态）</h3>
+  <blockquote>
+    <p class="en">"Atlas can natively process many different data types. At present it can operate on <b>text, images, camera poses, and 3D depth maps</b>; videos are represented as sequences of images. Each image and depth map is conditioned on an explicit camera pose, making spatial control a central component of the architecture."</p>
+  </blockquote>
+  <div class="callout">🔑 关键点：<b>相机位姿是一等公民的输入类型</b>（native input type），每张图像 / 深度图都绑定显式相机位姿——空间控制被内建在架构层，而非靠文本提示词间接控制。</div>
+
+  <h3 id="sec3-2">3.2 Autoregressive（自回归）</h3>
+  <blockquote>
+    <p class="en">"Atlas operates on sequences of elements, where each element is one of the multimodal data types above. Each output is generated one at a time, conditioned on earlier parts of the sequence. This flexible design naturally adapts to a wide variety of tasks: <b>each task is just a different kind of sequence, where inputs are followed by outputs</b>."</p>
+  </blockquote>
+  <p>即：<b>任务 = 序列构造方式</b>。生成、重建、模拟等所有任务被统一成"输入元素 + 输出元素"的序列化形式，无需任务专属头或分支。</p>
+
+  <h3 id="sec3-3">3.3 Diffusion（扩散）与 Transformer</h3>
+  <blockquote>
+    <p class="en">"Atlas is a <b>rectified flow</b> model that generates outputs by gradually denoising them... can naturally trade off speed and quality by varying the number of denoising steps."</p>
+  </blockquote>
+  <p>扩散（整流流）负责高维连续数据（图像 / 视频 / 深度）的高保真生成；Transformer 骨干以大矩阵乘为主、充分适配现代硬件。</p>
+
+  <h3 id="sec3-4">3.4 两条技术路线的红利兼收（创新点）</h3>
+  <blockquote>
+    <p class="en">"Like an LLM, it is an autoregressive transformer, so it can take advantage of innovations used to serve and accelerate LLMs including <b>KV-caching, cache-aware routing, disaggregated serving</b>, and more. Like a modern image or video model, it is a latent diffusion model and can make use of algorithms such as <b>diffusion distillation, classifier-free guidance, shifted noise schedules</b>, and advances in VAE design."</p>
+  </blockquote>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>来源路线</th><th>继承的机制</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><b>LLM 侧</b>（自回归 Transformer）</td><td>KV-caching、cache-aware routing、disaggregated serving 等推理服务加速</td></tr>
+      <tr><td><b>视频/图像模型侧</b>（latent diffusion）</td><td>扩散蒸馏、classifier-free guidance、shifted noise schedules、VAE 设计进展</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="sec4">
+  <h2><span class="num">4</span>核心概念：空间上下文（Spatial Context）</h2>
+  <p>这是 Atlas 区别于 LLM 的<b>最核心创新</b>。官方类比：</p>
+  <blockquote>
+    <p class="en">"Similar to an LLM, Atlas first encodes its inputs into a context, then generates outputs conditioned on the context. However, Atlas is unique because <b>each image is grounded at a 3D position in space; this forms a spatial context</b>."</p>
+  </blockquote>
+  <ul>
+    <li>LLM 的上下文是一串 token 的语义上下文；Atlas 的上下文是<b>每个输入都被锚定在 3D 空间中的"空间上下文"</b>；</li>
+    <li>输出生成时必须与上下文中"已见过的一切"保持 3D 一致，并对"视野之外"进行合理想象（"staying consistent in 3D with everything it has seen and imagining what lies beyond it"）；</li>
+    <li><b>空间上下文管理本身成为创作控制手段</b>：可以把两张互不相关的参考图放进上下文并摆到 3D 空间中的指定位置，Atlas 会生成一个在两者之间平滑过渡的世界——官方演示中模型自行"想象"出门口、走廊、壁龛等过渡空间（"it imagines doorways, hallways, nooks, and other transitions between otherwise unrelated image pairs"）；</li>
+    <li>长视频生成 = <b>相机运动 + 空间上下文管理</b>的组合：用户手工设计穿越场景的相机路径（"director's chair"——"you are staging the scene, not pulling the lever of a slot machine"），即可用少量参考图生成 <b>1 分钟 1440p</b> 连贯视频。</li>
+  </ul>
+  <figure>
+    <img src="assets/cam-control-demo.webp" alt="相机控制生成演示">
+    <figcaption><b>相机控制生成：从单张输入图生成任意角度新视角。</b>Atlas 使用精确相机几何作为原生输入（超越粗粒度文本指令），结合世界知识补全未见区域——例如生成机器人的背面、猜测泳池旁应有草坪。（官方交互演示静帧，来源：<a href="https://www.worldlabs.ai/blog/atlas#camera-controlled-generation" target="_blank">博客 §Camera-Controlled Generation</a>）</figcaption>
+  </figure>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="sec5">
+  <h2><span class="num">5</span>四大能力</h2>
+
+  <h3 id="sec5-1">5.1 相机控制生成（Camera-Controlled Generation）</h3>
+  <ul>
+    <li>输入 <b>1–6 张参考图</b> + 手工设计的相机路径，逐帧生成新视角；</li>
+    <li><b>像素级相机控制（pixel-perfect camera control）</b>："going beyond coarse text-based instructions"——每个机位、每个运动都可控；</li>
+    <li>单张图即可生成完整场景：结合输入图内容与<b>广泛的世界知识</b>推断未见视角；</li>
+    <li>输出上限：<b>最长 1 分钟、1440p 分辨率</b>；</li>
+    <li>覆盖宽泛的场景类型、视觉风格与相机运动。</li>
+  </ul>
+
+  <h3 id="sec5-2">5.2 空间重建（Spatial Reconstruction）</h3>
+  <p>官方定位——用世界模型解决 3D 视觉的"老大难"问题：</p>
+  <blockquote>
+    <p class="en">"We believe Atlas is a major step forward toward solving the problem of <b>novel view synthesis from sparse input images</b>, a decades-old fundamental problem in 3D computer vision."</p>
+  </blockquote>
+  <ul>
+    <li><b>可变输入视角数</b>：从 1 张到上百张（"Atlas can also make use of <b>over a hundred input images</b> in its spatial context"）；</li>
+    <li><b>"看得越多，想象越少"</b>："the more it sees, the less it imagines"——2–3 张图通常就能给出忠实重建；</li>
+    <li>官方演示"逐图累加"案例：单张地面照片 → 鸟瞰（花园准确、其余想象）；+第二张（小屋）→ 花园+小屋准确、左侧仍想象；+第三张（主屋）→ 整个场景准确。另一案例用 <b>2–25 张地面照片</b>重建斯坦福 Main Quad，并能生成高空航拍路径；</li>
+    <li><b>同场景多路径</b>：同一小组输入图可生成任意多条相机轨迹（速度、长度、复杂度可变），"No matter how many times you change the camera path, the scene stays consistent"；</li>
+    <li><b>显式 3D 输出</b>：原生同时处理 2D 帧与 <b>3D 深度图</b>，可输出<b>点云</b>或 <b>3D Gaussian Splats</b>——单图输入时联合生成新视角 + 估计几何；真实视频输入时逐帧预测深度并融合成 3D 重建；"Atlas fills in regions that no camera ever saw"；</li>
+    <li>点云 → 完整 splat 场景：可在设备端高分辨率、高帧率渲染——与 Marble 使用同一表示，天然接入自家产品生态。</li>
+  </ul>
+  <figure>
+    <img src="assets/splat-demo-1.webp" alt="显式 3D 输出：单图到 Gaussian Splats">
+    <figcaption><b>显式 3D 输出：从单张输入图联合生成新视角与几何，转为 3D Gaussian Splats 场景。</b>（官方演示静帧，来源：<a href="https://www.worldlabs.ai/blog/atlas#explicit-3d-outputs" target="_blank">博客 §Explicit 3D Outputs</a>）</figcaption>
+  </figure>
+  <figure>
+    <img src="assets/splat-demo-3.webp" alt="点云补全演示">
+    <figcaption><b>点云 → 完整 splat 场景。</b>点云只估计几何，Atlas 填补"没有任何相机拍到过的区域"并转为可设备端渲染的完整场景。（官方演示静帧）</figcaption>
+  </figure>
+
+  <h3 id="sec5-3">5.3 时空模拟（Space-Time Simulation）</h3>
+  <p>Atlas 作为<b>世界模拟器</b>："It understands both the spatial structure of the world and how the world evolves over time."</p>
+  <p><b>（1）子弹时间视频重构图（Bullet-Time Reframing）</b></p>
+  <blockquote>
+    <p class="en">"Atlas turns a handful of ordinary cameras into a 'bullet time' multiview capture studio. With footage from <b>as few as three cameras</b>, Atlas can freeze time and reframe shots, letting you view events from impossible angles."</p>
+  </blockquote>
+  <ul>
+    <li>仅需 <b>3–5 个普通手机 / 运动相机</b>机位，即可冻结时间、从任意"不可能的角度"重构画面——无需专业摄影团队或专用采集设备（官方演示由工程师用能装进背包的三脚架+夹具拍摄）；</li>
+    <li>流程：先从 3–5 个视角重建场景，再自由重新取景（reframe）。</li>
+  </ul>
+  <p><b>（2）机器人 Real-to-Sim</b></p>
+  <ul>
+    <li><b>导航仿真</b>：手机视频取 <b>24 帧</b>即可重建大型环境（传统方式需要昂贵专业设备），然后模拟不同机器人在不同路径上导航，<b>由 Atlas 生成机体相机视角的 RGB 与深度数据</b>——"The world and the robot's view of it come from the same model"（世界与机器人视角同源，天然一致）；</li>
+    <li><b>操作仿真（manipulation）</b>：从少量随手拍摄出发构建仿真，可复现<b>刚性、铰接（articulated）、可变形（deformable）物体</b>的物理交互；任务仿真化后可任意变换（物体、位置、机器人运动、光照、背景）——"The result is <b>diverse training data and testing environments for robotics at scale</b>"。</li>
+  </ul>
+  <figure>
+    <img src="assets/robotics-poster.jpg" alt="机器人 Real-to-Sim 演示">
+    <figcaption><b>Real-to-Sim：从少量真实录制重建环境并模拟机器人导航 / 操作。</b>支持刚性、铰接与可变形物体的物理交互与可控变化（物体、位置、运动、光照、背景）。（来源：<a href="https://www.worldlabs.ai/blog/atlas#robotics-simulation" target="_blank">博客 §Robotics Simulation</a>）</figcaption>
+  </figure>
+
+  <h3 id="sec5-4">5.4 图像生成（Image Generation）</h3>
+  <blockquote>
+    <p class="en">"Though image generation is not its primary focus, Atlas is a capable image generator: it follows complex prompts, renders text, and generates a wide variety of visual styles. Atlas also generates <b>360 images</b> from text or image prompts."</p>
+  </blockquote>
+  <p>图像生成不是主目标（"every image is a window to a possible world"），但作为统一模型的自带能力，支持复杂提示词、文字渲染、多风格，以及<b>文本 / 图像生成 360° 全景</b>。</p>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="sec6">
+  <h2><span class="num">6</span>评测结果</h2>
+  <p>官方强调 Atlas 是执行多任务的全模态模型，"no single benchmark that fully captures its generality"，因此只定量评测了两个关键任务。</p>
+
+  <h3>6.1 相机控制生成（人评）</h3>
+  <ul>
+    <li><b>协议</b>：单张输入图 + 1–3 段电影级相机运动（pan、truck、crane 等）组成目标相机路径；Atlas 用<b>原生相机输入格式</b>，其他模型（不支持相机原生输入）用标准电影术语的<b>文本描述</b>；第三方人类评分者判断谁更好地遵循相机路径；</li>
+    <li><b>结果</b>（选择 Atlas 的投票占比，均大幅领先）：</li>
+  </ul>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>对比基线</th><th>Atlas 获偏好率</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>MiniMax H3</td><td class="hl">75%</td></tr>
+      <tr><td>Gemini Omni Flash</td><td class="hl">81%</td></tr>
+      <tr><td>Happy Horse 1.1</td><td class="hl">86%</td></tr>
+      <tr><td>FLUX 3</td><td class="hl">93%</td></tr>
+      <tr><td>Seedance 2.5</td><td class="hl">94%</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <blockquote>
+    <p class="en">"These results confirm that <b>Atlas outperforms recent video models at camera-controlled generation</b>, and this advantage grows as camera trajectories become more complex."</p>
+  </blockquote>
+
+  <h3>6.2 稀疏视角 3D 重建</h3>
+  <ul>
+    <li><b>协议</b>：输入一组图像 + 相机位姿，为每个输入像素预测对应 3D 点（pointmap）；指标为各数据集的 <b>mean absolute-relative pointmap error（AbsRel ×10⁻³，越低越好）</b>；所有基线结果均为官方<b>复现</b>以保证公平协议；</li>
+    <li><b>基线</b>：5 个近年专门的重建模型——Pi3X (posed)、π³、VGGT-Ω 1B、Depth Anything 3、MapAnything。</li>
+  </ul>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Benchmark</th><th class="hl">Atlas (Ours)</th><th>Pi3X (posed)</th><th>π³</th><th>VGGT-Ω 1B</th><th>Depth Anything 3</th><th>MapAnything</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><b>Average</b></td><td class="hl">25.3</td><td>28.7</td><td>34.7</td><td>36.4</td><td>39.3</td><td>47.7</td></tr>
+      <tr><td>DTU</td><td class="hl">8.6</td><td>11.1</td><td>16.2</td><td>9.7</td><td>11.9</td><td>18.2</td></tr>
+      <tr><td>ETH3D</td><td class="hl">9.3</td><td>18.7</td><td>25.4</td><td>11.4</td><td>23.8</td><td>34.8</td></tr>
+      <tr><td>KITTI</td><td class="hl">60.0</td><td>60.2</td><td>74.8</td><td>101.4</td><td>93.3</td><td>115.3</td></tr>
+      <tr><td>NRGBD</td><td class="hl">6.5</td><td>13.3</td><td>17.5</td><td>10.5</td><td>11.3</td><td>20.2</td></tr>
+      <tr><td>7-Scenes</td><td class="hl">37.8</td><td>39.3</td><td>44.4</td><td>45.2</td><td>50.8</td><td>47.4</td></tr>
+      <tr><td>T&amp;T</td><td>42.4</td><td>42.4</td><td>47.0</td><td class="hl">40.2</td><td>55.1</td><td>60.8</td></tr>
+      <tr><td>ScanNet</td><td class="hl">12.4</td><td>15.7</td><td>17.4</td><td>36.6</td><td>29.0</td><td>37.0</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <blockquote>
+    <p class="en">"Despite its generality, <b>Atlas outperforms the best specialized open-source reconstruction models</b>."</p>
+  </blockquote>
+  <div class="callout">💡 要点：Atlas <b>平均误差 25.3 领先全部 5 个专门重建模型</b>（最佳基线 Pi3X 28.7）；7 个数据集中 6 个第一（DTU、ETH3D、KITTI、NRGBD、7-Scenes、ScanNet），仅 T&amp;T 上 VGGT-Ω 1B（40.2）略优于 Atlas（42.4）。一个"顺带"做重建的全模态世界模型击败了只为重建训练的专门模型——凸显统一架构 + 空间上下文 + 世界知识的价值。</div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="sec7">
+  <h2><span class="num">7</span>模型缩放</h2>
+  <blockquote>
+    <p class="en">"Most progress in modern AI has been driven by scaling... We see strong evidence that Atlas will continue to improve with scale. We pretrained Atlas from scratch on a large diverse corpus of multimodal data. Over the course of development, we trained a <b>series of models of increasing size and training compute</b>, and found that <b>each new level of compute unlocked new model capabilities</b>."</p>
+  </blockquote>
+  <ul>
+    <li>Atlas 从零预训练于大规模多样化多模态语料（未披露数据构成与规模）；</li>
+    <li>开发过程中训练了<b>一系列递增规模的模型</b>，每提高一档算力都解锁了新能力（类似 LLM 的涌现式叙事）；</li>
+    <li>官方明确押注缩放曲线将持续："We are confident that our future world models will follow this trend, dramatically improving their capabilities as we continue to scale."</li>
+  </ul>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="sec8">
+  <h2><span class="num">8</span>产品化与开放情况</h2>
+  <ul>
+    <li><b>早期访问（early access）</b>：邀请制向选定合作伙伴开放（官方提供 <a href="https://form.typeform.com/to/zHFR4r3A" target="_blank">申请表单</a>），定位 "the go-to world model for generating, reconstructing, and simulating any world"；</li>
+    <li><b>Marble 集成</b>：Atlas 将驱动 Marble 的未来版本；其 splat 输出表示与 Marble 一致，可自然融入现有产品与渲染管线；</li>
+    <li><b>发布形式</b>：官方博客发布（含完整引用格式 <code>@article{worldlabs2026atlas, ...}</code>），暂无论文、无开源权重、无 API 价格信息。</li>
+  </ul>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="sec9">
+  <h2><span class="num">9</span>已知局限</h2>
+  <ul>
+    <li><b>无技术论文</b>：架构只有博客级描述——未披露参数量、训练数据构成、推理成本、模型变体等细节；</li>
+    <li><b>模态范围带 "at present" 限定</b>：当前原生输入为文本、图像、相机位姿、3D 深度图（视频 = 图像序列），音频等模态未提及；</li>
+    <li><b>长视频生成依赖手工相机路径</b>：1 分钟 1440p 演示采用 "hand-design a camera path"，可控性以人工设计成本换取；</li>
+    <li><b>重建与想象的边界</b>：输入稀疏时模型会"想象"未见区域（官方也坦承 "sometimes you do not want imagination"），需要更多输入图压制幻觉；</li>
+    <li><b>早期访问制</b>：暂无公开可用渠道，第三方无法独立复现其基准结果。</li>
+  </ul>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="sec10">
+  <h2><span class="num">10</span>参考资料</h2>
+  <ul>
+    <li>官方博客：<a href="https://www.worldlabs.ai/blog/atlas" target="_blank">Atlas: A World Model for Spatial Intelligence</a>（2026-09-01）</li>
+    <li>相关博客：<a href="https://www.worldlabs.ai/blog/real-to-sim-to-real" target="_blank">Real-to-Sim-to-Real</a>（机器人 R2S2R 工作流）</li>
+    <li>产品：<a href="https://marble.worldlabs.ai/" target="_blank">Marble</a>（World Labs 的世界生成产品，Atlas 将驱动其后续版本）</li>
+    <li>引用格式：</li>
+  </ul>
+  <pre><code>@article{worldlabs2026atlas,
+  author = {World Labs Team},
+  title = {Atlas: A World Model for Spatial Intelligence},
+  journal = {World Labs Blog},
+  year = {2026},
+  note = {https://www.worldlabs.ai/blog/atlas},
+}</code></pre>
+</section>
+
+<footer>
+  本页面图片（assets/ 下各文件）均取自 World Labs 官方博客演示（交互演示的静帧 / 缩略图），版权归 World Labs 所有。<br>
+  调研笔记 · 由 Paper Research 整理
+</footer>
+
+</main>
+</div>
+<a class="back-top" href="#top" title="回到顶部">↑</a>
+</body>
+</html>
