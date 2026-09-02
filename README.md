@@ -57,3 +57,12 @@ World Labs 新一代全模态世界模型（空间智能）调研：
 - 内容：多模态自回归扩散 Transformer、空间上下文（Spatial Context，图像锚定 3D 位置）、相机位姿原生输入、稀疏视角重建 + 3D Gaussian Splats 输出、1440p/1 分钟长视频、Real-to-Sim 机器人仿真、缩放叙事；附两大基准（相机控制人评 75–94%、点图重建 AbsRel 领先 5 个专门模型）
 - 来源：官方博客 [*Atlas: A World Model for Spatial Intelligence*](https://www.worldlabs.ai/blog/atlas)（2026-09-01，暂无论文）
 - 配图：`atlas/assets/`
+
+### 7. [FLUX 3](flux3/)
+
+Black Forest Labs 多模态流匹配基础模型（"真实世界模型"）调研：
+
+- [FLUX-3-架构与创新点详解.md](flux3/FLUX-3-架构与创新点详解.md)
+- 内容：图像+视频+音频联合训练的统一 DiT 流匹配（视频占 >95% 算力、音频 <0.5% token）、Self-Flow 自监督流匹配（Dual-Timestep Scheduling 双时间步信息不对称，零外部模型超越 REPA）、操作成功率 42%→71%、FLUX-mimic 冻结骨干动作解码（部署 Audi、RTX 5090 <80ms）、20s 原生音频视频、发布矩阵（Video/Image/Action/Dev 开源）
+- 来源：官方博客 [*FLUX 3 — Real World Models*](https://bfl.ai/blog/flux-3)（2026-07-23）、[Self-Flow 研究页](https://bfl.ai/research/self-flow)（Chefer & Esser，BFL+MIT）与 [*FLUX 3 × mimic*](https://bfl.ai/blog/flux-3-mimic)
+- 配图：`flux3/assets/`
