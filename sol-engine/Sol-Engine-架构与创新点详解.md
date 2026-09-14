@@ -251,7 +251,7 @@ LTX-2.5 是 22B 的**音视频联合** diffusion transformer（一条 transforme
 | 分支文件 | 1,448 个文件、约 45.7 MB（GitHub tree API 口径）；shallow clone 后约 64 MB |
 | Python 代码 | **862 个 `.py` / 215,443 行** |
 | Config manifest | `config/` 下 **90 个 `.toml`**，按模型分子目录（`cosmos3`、`ltx23`、`minimax_h3`、`wan22_ti2v_5b`、`wan22_t2v_a14b`、`lingbot_video`、`sana_video`、`hunyuan_video`、`wan21_t2v_14b` 等）+ 技术维度的 `sparse_attention` / `step_cache` / `token_prune` / `nvfp4_ffn` / `kwl_fusion` |
-| 模型运行时 | `models/<model>/`（如 `models/minimax_h3/` 下按硬件分 `GB200` / `B300`? / `H100` / `A100` / `GB10` / `RTX4090` / `RTX5090` / `Sol-H3` / `Sol-H3-Spark` / `super_acceleration`） |
+| 模型运行时 | `models/<model>/`（如 `models/minimax_h3/` 下按硬件分 `GB200` / `H100` / `A100` / `GB10` / `RTX4090` / `RTX5090` / `Sol-H3` / `Sol-H3-Spark` / `super_acceleration`（B300 结果体现在项目页与 config，未单独建目录）） |
 | 技术实现 | `techniques/`：`methods/`（teacache、step_cache、payload_cache、token_prune）、`transforms/`（kwl_fusions、nvfp4_ffn、sparse_attention）、`compose.py`、`config_manifest.py`、`spec.py`、`registry.py`、`schedule.py`、`selftest.py`；`techniques/sparse_backends/sol_attn/` 含 CuTe kernel、Triton 参考实现与 `mps/` Metal 后端 |
 | 统一入口 | `python3 scripts/run.py config/<model>/<arm>.toml`（`--print` 只做解析与路径检查；`--set KEY=VALUE` 做单次覆盖） |
 | 运行产物 | `runs/<timestamp>-<id>/`：`launch.sh`、`manifest.resolved.toml`、`metadata.json`、`outputs/`（视频 + `benchmark.json`，后者记录实际选中的 backend） |
