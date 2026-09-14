@@ -84,3 +84,12 @@ S-Lab NTU 的统一多模态 3D 世界模型（三种原生世界状态：physic
 - 内容：**9 通道 Omni-Camera 表示**（gravity-aware 绝对 perspective field + ray-based 相对几何）；**physics propagation**（把参考视角感知到的重力方向沿轨迹传播，消融：PSNR 19.87→20.54、roll 误差 1.94°→1.76°）；latent 空间像素对齐的相机条件注入 + 多视角 joint-attention（view-axis 1D RoPE，无需一致性 loss）；Hilbert 可逆颜色映射让深度复用同一个 frozen VAE；chunked 自回归长轨迹；四阶段训练配方；**Puffin-16M**（15,338,221 单视角三元组 + 1,136,696 条轨迹，≈11.6 TB）与 28 个公开数据集 / ≈44.5M 图像的绝对相机标注；实验数字（相机理解 12/12 最优 median error、Puffin-Cam-Bench FID 75.93、RealEstate10K PSNR 17.22 / LPIPS 0.318、Puffin-Traj-Bench roll 0.80°）
 - 来源：论文 [*Puffin-World: Scaling a Unified Multimodal Model with Native 3D World States*](https://arxiv.org/abs/2609.04196)（arXiv:2609.04196）与 [官方项目页](https://kangliao929.github.io/projects/puffin-world/)、[GitHub](https://github.com/KangLiao929/Puffin)
 - 配图：`puffin-world/assets/`
+
+### 10. [Sol-Engine](sol-engine/)
+
+NVIDIA `NVlabs/Sana` 仓库 **`sol-engine`** 分支（Sol Video Inference Engine）调研 —— 面向高分辨率视频 diffusion 的 **agent-native 全栈推理加速框架**：
+
+- [Sol-Engine-架构与创新点详解.md](sol-engine/Sol-Engine-架构与创新点详解.md)（另有 [HTML 版](sol-engine/Sol-Engine-架构与创新点详解.html)）
+- 内容：把视频 diffusion 推理的三层冗余（算法层跨步 / 模型层长序列 token 与 attention / kernel 层 memory-bound glue）对应到 **五类 training-free 技术**（Cache、NVFP4 量化、kernel fusion、稀疏注意力、token pruning），并组织成 **agentic 加速栈**（master orchestrator + 每技术一个 executor 子 agent + integrator，config 契约 + LPIPS / VLM / authenticity 三重质量门）；**Sol-Attn** 在线稀疏注意力（on-the-fly block thresholding + proxy score 复用，一次 online-softmax 内完成路由/稀疏/近似校正；CuTe DSL kernel 覆盖 SM89/90/100/120，另有 Triton 与 Metal 回退）；**11 条模型加速线全部数字**（Cosmos3-Super 64B ~2.27x、LTX-2.3 22B ~2.38x、SANA-Video 2B ~2.77x、Wan2.2-5B ~2.89x、Wan2.2-A14B ~2.17x、LingBot-Video 30B-A3B ~2.60x、HunyuanVideo-13B **~5.03x**、Wan2.1-14B ~3.48x、LTX-2.5 **4.68x** / 蒸馏 1.90x、MiniMax-H3 ~3.95x、H3 Super Acceleration **22.2x / 27.7x**）；四个旗舰案例（Sol-H3 在 8xB300 上 5 秒视频 **1.653 s** 的 1/4/8 卡 x 5/10/15 s 完整延迟表；Sol-H3-Spark 单张 DGX Spark **56 s** 出 768p 5 s 及延迟分解；H3 Super Acceleration 的双 GB200 latent/TCP handoff 与 benchmark 纪律；LTX-2.5 三种分辨率/时长的逐项累积）
+- 来源：分支 [NVlabs/Sana · sol-engine](https://github.com/NVlabs/Sana/tree/sol-engine)（HEAD `8e0db4fa`）与论文 [Sol Video Inference Engine](https://arxiv.org/abs/2606.23743)（arXiv:2606.23743）、[Sol-Attn](https://arxiv.org/abs/2607.24027)（arXiv:2607.24027）
+- 配图：`sol-engine/assets/`

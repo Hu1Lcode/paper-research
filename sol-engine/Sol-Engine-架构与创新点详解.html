@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolarWM 解读 · 全开放的长时程视频世界模型</title>
+<style>
+  :root{
+    --ink:#0f172a; --ink-soft:#475569; --muted:#64748b;
+    --bg:#f6f8fb; --card:#ffffff; --line:#e2e8f0;
+    --accent:#6366f1;
+    --grad:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#06b6d4 100%);
+    --sun:linear-gradient(135deg,#f59e0b 0%,#ef4444 50%,#8b5cf6 100%);
+    --radius:16px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.75}
+  .progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--sun);z-index:100;transition:width .1s linear}
+
+  nav{position:sticky;top:0;z-index:90;background:rgba(255,255,255,.84);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .nav-inner{max-width:1060px;margin:0 auto;display:flex;align-items:center;gap:4px;padding:10px 20px;flex-wrap:wrap}
+  .nav-brand{font-weight:800;margin-right:12px;background:var(--sun);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:15px}
+  nav a{text-decoration:none;color:var(--ink-soft);font-size:13.5px;font-weight:600;padding:6px 11px;border-radius:999px;transition:.2s}
+  nav a:hover{background:#eef2ff;color:var(--accent)}
+  nav a.active{background:#eef2ff;color:var(--accent)}
+
+  header{background:radial-gradient(1100px 480px at 12% -10%,rgba(245,158,11,.30),transparent 60%),radial-gradient(900px 420px at 88% 6%,rgba(139,92,246,.38),transparent 62%),#0b1120;color:#f1f5f9;padding:68px 20px 58px}
+  .hero{max-width:1060px;margin:0 auto}
+  .hero .kicker{letter-spacing:.24em;font-size:12px;font-weight:700;color:#fcd34d;text-transform:uppercase}
+  .hero h1{font-size:clamp(28px,4.6vw,44px);font-weight:900;margin:14px 0 8px;line-height:1.25}
+  .hero h1 .g{background:var(--sun);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.sub{color:#cbd5e1;font-size:16px;max-width:850px;margin-top:10px}
+  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .tag{font-size:13px;padding:6px 14px;border:1px solid rgba(148,163,184,.4);border-radius:999px;color:#e2e8f0;background:rgba(148,163,184,.08)}
+  .hero .tag b{color:#fcd34d;font-weight:700}
+  .hero .authors{margin-top:20px;font-size:13px;color:#94a3b8;line-height:1.9}
+  .hero .authors b{color:#cbd5e1}
+
+  main{max-width:1060px;margin:0 auto;padding:0 20px 90px}
+  section{padding-top:56px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-num{flex:none;width:42px;height:42px;border-radius:12px;background:var(--sun);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;box-shadow:0 8px 20px rgba(245,158,11,.34)}
+  h2{font-size:26px;font-weight:800}
+  .sec-sub{color:var(--muted);font-size:15px;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px 28px;margin-bottom:22px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h3{font-size:19px;font-weight:800;margin:0 0 12px}
+  h4{font-size:15px;font-weight:800;margin:18px 0 8px;color:#9a3412}
+  .muted{color:var(--muted)}
+  code,.code{font-family:var(--mono);font-size:13px;background:#f1f5f9;padding:2px 6px;border-radius:5px}
+
+  .callout{border-radius:var(--radius);padding:18px 22px;margin-bottom:20px;color:#fff;background:linear-gradient(135deg,#7c2d12,#b45309 55%,#6d28d9);box-shadow:0 12px 30px rgba(124,45,18,.3)}
+  .callout .t{font-weight:800;font-size:13.5px;letter-spacing:.1em;opacity:.88;margin-bottom:3px}
+  .callout p{font-size:16px;line-height:1.75}
+  .callout.warn{background:linear-gradient(135deg,#78350f,#b45309 60%,#a16207)}
+  .callout.blue{background:linear-gradient(135deg,#312e81,#4338ca 60%,#0e7490);box-shadow:0 12px 30px rgba(49,46,129,.3)}
+  .callout.green{background:linear-gradient(135deg,#064e3b,#047857 60%,#0e7490);box-shadow:0 12px 30px rgba(6,78,59,.3)}
+
+  .statbar{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:820px){.statbar{grid-template-columns:repeat(2,1fr)}}
+  .statbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .statbox b{display:block;font-size:21px;font-weight:900;background:var(--sun);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.3}
+  .statbox span{font-size:12.5px;color:var(--muted)}
+
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:820px){.pillars{grid-template-columns:1fr}}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;border-top:4px solid #f59e0b}
+  .pcard:nth-child(2){border-top-color:#8b5cf6}
+  .pcard:nth-child(3){border-top-color:#06b6d4}
+  .pcard b{display:block;font-size:15.5px;margin-bottom:6px}
+  .pcard p{font-size:14px;color:var(--ink-soft)}
+
+  table{width:100%;border-collapse:collapse;font-size:13.8px;margin:6px 0}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}
+  th{background:#f1f5f9;font-size:12.3px;letter-spacing:.04em;color:var(--ink-soft);text-transform:uppercase}
+  tr:last-child td{border-bottom:none}
+  td code{font-size:12.2px}
+  @media(max-width:820px){table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}}
+
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:14px 0 4px}
+  .step{flex:1 1 150px;min-width:150px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13.3px}
+  .step b{display:block;font-size:13px;margin-bottom:3px}
+  .step span{color:var(--muted);display:block;line-height:1.5}
+  .step.hot{background:linear-gradient(135deg,#fff7ed,#fef3c7);border-color:#fcd34d}
+  .step.hot b{color:#b45309}
+  .flow .arrow{align-self:center;color:#94a3b8;font-size:17px;font-weight:700;flex:none}
+
+  .formula{background:#0b1120;color:#e2e8f0;border-radius:12px;padding:18px 22px;margin:12px 0;font-family:Georgia,"Times New Roman",serif;font-size:15.5px;line-height:2;overflow-x:auto}
+  .formula .hl{color:#fcd34d}
+  .formula .lbl{display:block;font-family:-apple-system,"PingFang SC",sans-serif;font-size:12.5px;font-style:normal;color:#94a3b8;margin-bottom:6px}
+  .snippet{background:#0b1120;color:#e2e8f0;border-radius:12px;padding:16px 20px;font-family:var(--mono);font-size:12.6px;line-height:1.85;overflow-x:auto;margin:10px 0;white-space:pre}
+  .snippet .c{color:#64748b}
+  .snippet .k{color:#c4b5fd}
+  .snippet .s{color:#86efac}
+  .tree{background:#0b1120;color:#e2e8f0;border-radius:14px;padding:20px 22px;font-family:var(--mono);font-size:12.6px;line-height:1.9;overflow-x:auto;white-space:pre}
+  .tree .d{color:#fcd34d;font-weight:700}
+  .tree .c{color:#64748b}
+  .tree .hl{color:#fca5a5}
+  @media(max-width:760px){.tree{font-size:11.2px}}
+
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+  .chip{font-size:12.6px;padding:6px 12px;border-radius:9px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-weight:600;font-family:var(--mono)}
+  .chip.v{background:#f5f3ff;border-color:#ddd6fe;color:#6d28d9}
+  .chip.c{background:#ecfeff;border-color:#a5f3fc;color:#0e7490}
+  .chip.g{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+  .chip.grey{background:#f1f5f9;border-color:#e2e8f0;color:#475569}
+
+  .timeline{position:relative;padding-left:26px}
+  .timeline:before{content:'';position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:var(--sun)}
+  .tl{position:relative;padding:0 0 16px 6px}
+  .tl:before{content:'';position:absolute;left:-24px;top:7px;width:10px;height:10px;border-radius:50%;background:#fff;border:2.5px solid #f59e0b}
+  .tl .when{font-size:12px;font-weight:800;color:#b45309;letter-spacing:.04em}
+  .tl .what{font-size:14.5px}
+
+  .quote{border-left:4px solid #f59e0b;background:#fffbeb;border-radius:0 14px 14px 0;padding:18px 22px;font-size:15.5px;color:#78350f;font-weight:600;margin:8px 0 20px}
+
+  footer{border-top:1px solid var(--line);background:#fff}
+  .foot{max-width:1060px;margin:0 auto;padding:28px 20px;color:var(--muted);font-size:13px}
+  .foot a{color:var(--accent);text-decoration:none}
+  .foot .ref{margin-top:6px}
+</style>
+
+<style>
+  :root{--sun:linear-gradient(135deg,#76b900 0%,#0ea5e9 55%,#6366f1 100%);--accent:#3f6212}
+  header{background:radial-gradient(1100px 480px at 12% -10%,rgba(118,185,0,.30),transparent 60%),radial-gradient(900px 420px at 88% 6%,rgba(14,165,233,.34),transparent 62%),#0b1120}
+  .hero h1 .g{background:var(--sun);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sec-num{box-shadow:0 8px 20px rgba(118,185,0,.34)}
+  .pcard{border-top-color:#76b900}
+  .pcard:nth-child(2){border-top-color:#0ea5e9}
+  .pcard:nth-child(3){border-top-color:#6366f1}
+  .callout{background:linear-gradient(135deg,#1a2e05,#3f6212 55%,#0e7490);box-shadow:0 12px 30px rgba(26,46,5,.3)}
+  .callout.blue{background:linear-gradient(135deg,#0c4a6e,#4338ca 60%,#6d28d9)}
+  h4{color:#3f6212}
+  figure{margin:18px 0 6px}
+  figure img{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
+  figcaption{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.7}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+  .grid2 figure{margin:0}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<nav>
+  <div class="nav-inner">
+    <span class="nav-brand">Sol-Engine 解读</span>
+    <a href="#overview" data-spy>速览</a>
+    <a href="#tech" data-spy>五类技术</a>
+    <a href="#solattn" data-spy>Sol-Attn</a>
+    <a href="#agent" data-spy>Agent 工作流</a>
+    <a href="#matrix" data-spy>模型矩阵</a>
+    <a href="#cases" data-spy>四个案例</a>
+    <a href="#repo" data-spy>工程结构</a>
+    <a href="#limits" data-spy>局限</a>
+  </div>
+</nav>
+
+<header>
+  <div class="hero">
+    <div class="kicker">NVlabs/Sana · branch sol-engine · HEAD 8e0db4fa · 2026-09-11</div>
+    <h1>Sol-Engine：把视频 diffusion 推理加速做成<span class="g">agent 可执行的工程</span></h1>
+    <p class="sub">它不是又一个模型，而是一套<b>效率型推理框架</b>：建立在 SGLang 的 <code>multimodal_gen</code> runtime 之上，把 cache、稀疏注意力、token 剪枝、量化、kernel 融合<b>五类技术</b>组织成 agentic 加速栈，为每个「模型 × 硬件 × 服务配置」组合找到各自的加速线。单模型 <b>2.17×–5.03×</b>；组合式 MiniMax-H3 Super Acceleration 达 <b>22.2×（5 s）/ 27.7×（10 s）</b>；Sol-H3 在 8×B300 上把 5 秒带音频视频压到 <b>1.653 s</b>——<b>比实时播放更快</b>。</p>
+    <div class="meta">
+      <span class="tag"><b>11</b> 条模型加速线</span>
+      <span class="tag"><b>5</b> 类加速技术 · training-free</span>
+      <span class="tag">Sol-Attn 稀疏注意力</span>
+      <span class="tag">端到端 <b>~5.03×</b>（HunyuanVideo-13B）</span>
+      <span class="tag">单张 DGX Spark <b>56 s</b> 出 768p 5 s</span>
+      <span class="tag">代码 Apache-2.0</span>
+    </div>
+    <div class="authors">
+      <b>团队</b>：NVIDIA SANA Team / Efficient AI Team &amp; Singapore Lab —— Yitong Li, Junsong Chen, Haopeng Li, Haozhe Liu, Jincheng Yu, Ligeng Zhu, Ping Luo, Song Han, Enze Xie<br>
+      <b>论文</b>：<a style="color:#7dd3fc" href="https://arxiv.org/abs/2606.23743">Sol Video Inference Engine（arXiv:2606.23743）</a> · <a style="color:#7dd3fc" href="https://arxiv.org/abs/2607.24027">Sol-Attn（arXiv:2607.24027）</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- 速览 -->
+  <section id="overview">
+    <div class="sec-head"><div class="sec-num">①</div><h2>一句话与它真正的创新点</h2></div>
+    <p class="sec-sub">加速方法本身多数是"公开知识的组合"；这个项目的差异化在于<b>把加速工程本身交给 agent</b>，并用严格的分母与质量门约束每一个结论。</p>
+
+    <div class="callout">
+      <div class="t">一句话</div>
+      <p>最有效的加速配方是 <b>instance-specific</b> 的：换模型、换分辨率与时长、换 GPU，配方就失效。手工性能工程太贵，于是 Sol-Engine 把五类通用技术拆成带契约的 config manifest，让<b>并行 skill agent 各自优化一种技术</b>、agent integrator 合成全局加速栈、human validator 把关质量。</p>
+    </div>
+
+    <div class="statbar">
+      <div class="statbox"><b>5</b><span>加速技术族（cache / 量化 / 融合 / 稀疏注意力 / token 剪枝）</span></div>
+      <div class="statbox"><b>11</b><span>模型加速线，含组合式 Super Acceleration</span></div>
+      <div class="statbox"><b>1.653 s</b><span>Sol-H3：8×B300 上 5 秒带音频视频</span></div>
+      <div class="statbox"><b>56 s</b><span>Sol-H3-Spark：单卡 DGX Spark 出 768p 5 s</span></div>
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h3>痛点：三处 heterogeneity 叠出巨大的调参空间</h3>
+      <table>
+        <thead><tr><th>维度</th><th>差异体现在哪</th></tr></thead>
+        <tbody>
+          <tr><td><b>模型</b></td><td>架构、数值敏感度、<b>attention 的集中程度</b>各不相同 —— 同一个稀疏度在 A 模型可用，在 B 模型就掉画质</td></tr>
+          <tr><td><b>推理配置</b></td><td>空间/时间分辨率与视频时长差异极大（768p 5 s 与 4K 20 s 的最优配方完全不同）</td></tr>
+          <tr><td><b>硬件</b></td><td>显存层级、支持的数值格式（NVFP4 需 Blackwell）、kernel 吞吐都不同（从 A100 到 B300、从 RTX 4090 到 DGX Spark）</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">结论：需要的是"面向实例的自动优化流程"，而不是一套固定超参。</p>
+    </div>
+
+    <div class="pillars" style="margin-top:6px">
+      <div class="pcard"><b>① 三类冗余的完整切分</b><p>算法层（跨去噪步）、模型层（长序列 token 与 attention）、kernel 层（GEMM 周围的 memory-bound glue），五类技术正好覆盖三层。</p></div>
+      <div class="pcard"><b>② Agent-native 编排</b><p>master orchestrator + 每技术一个 executor 子 agent + integrator 合成；安装与调优都不是"照着脚本敲"，而是把 goal 交给 Codex / Claude Code。</p></div>
+      <div class="pcard"><b>③ 可审计的数字</b><p>baseline 与同拓扑 control 是一等公民；LPIPS + VLM 视觉门 + <b>authenticity check</b> 三重质量门，防止"空转优化"报出假 speedup。</p></div>
+    </div>
+  </section>
+
+  <!-- 五类技术 -->
+  <section id="tech">
+    <div class="sec-head"><div class="sec-num">②</div><h2>五类加速技术与三层冗余</h2></div>
+    <p class="sec-sub">每一类都配了"设计空间"（搜索什么）与"已实现条目"（仓库里真有哪些），并且都标注了在哪些模型上用。</p>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>层次</th><th>冗余从哪来</th><th>对应技术</th></tr></thead>
+        <tbody>
+          <tr><td><b>算法层</b></td><td>相邻去噪步在缓慢变化的 latent 上做结构相似的运算</td><td>Cache：TeaCache / EasyCache / fixed-step / TaylorSeer / Cache-DiT</td></tr>
+          <tr><td><b>模型层</b></td><td>长时空序列里存在冗余 token 与冗余 attention 交互</td><td>Sparse attention：PISA / <b>Sol-Attn</b> / SpargeAttn / Sparse VideoGen(2) · Token pruning：feature-norm / ToMe-SD</td></tr>
+          <tr><td><b>Kernel 层</b></td><td>DiT block 在 GEMM 周围反复启动 memory-bound 工作</td><td>Quantization（NVFP4 等）+ Kernel fusion（AdaLN/gate、GEMM epilogue、QK-norm+RoPE、QKV merge、torch.compile）</td></tr>
+        </tbody>
+      </table>
+      <h4>各技术的落地位置与收益</h4>
+      <table>
+        <thead><tr><th>技术</th><th>用在哪 / 关键约束</th><th>可量化收益</th></tr></thead>
+        <tbody>
+          <tr><td>Cache</td><td>Cosmos3-Super 用 TeaCache；SANA-Video 用 EasyCache；LTX 用 stage-specific cache / First Block Cache</td><td>LTX-2.5 多步路径 FBCache 一档 <b>1.28–1.38×</b>（Stage 1 性能近 +50%）</td></tr>
+          <tr><td>Quantization</td><td>NVFP4 需 Blackwell + TransformerEngine，老卡回退 BF16；<b>首尾去噪步保持 dense</b></td><td>Sol-H3 可选 fused MXFP8 把 5 s 档从 1.653 s 降到 <b>1.472 s</b></td></tr>
+          <tr><td>Kernel fusion</td><td>不改 scheduler / prompt / seed / 步数，纯实现级优化</td><td>Wan-5B <b>1.52×</b>、LingBot（cuDNN attention）<b>1.79×</b>、Wan-14B <b>1.13×</b></td></tr>
+          <tr><td>Sparse attention</td><td>LTX-2.3 在 stage-2 refinement 用 PISA；Sol-Attn 用于 HunyuanVideo / Wan2.1-14B / MiniMax-H3</td><td>HunyuanVideo-13B <b>~5.03×</b>、Wan2.1-T2V-14B <b>~3.48×</b> 端到端</td></tr>
+          <tr><td>Token pruning</td><td>LTX-2.3 在中间 refine 步裁掉低显著性 token；只在校验过的步上裁</td><td>参与 LTX-2.3 的 <b>~2.38×</b> 整条加速线</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Sol-Attn -->
+  <section id="solattn">
+    <div class="sec-head"><div class="sec-num">③</div><h2>Sol-Attn：一次 online softmax 里完成路由、稀疏与校正</h2></div>
+    <p class="sec-sub">它解决的问题很具体：既有的 training-free 动态稀疏注意力，要么路由僵硬昂贵，要么"保留/丢弃"太有损。</p>
+
+    <div class="card">
+      <div class="grid2">
+        <div>
+          <h4>既有方法的两处缺陷</h4>
+          <table>
+            <thead><tr><th>问题</th><th>表现</th></tr></thead>
+            <tbody>
+              <tr><td><b>路由刚性/昂贵</b></td><td>按 proxy score 取固定比例 top-k → 预算固定；按累积 proxy 概率质量取块 → 预算动态但可能失衡；两者都要<b>计算并物化 proxy 分数</b>，开销不可忽略</td></tr>
+              <tr><td><b>keep-or-drop 有损</b></td><td>未选中的 block 被整体丢弃，激进稀疏下精度迅速下降</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h4>Sol-Attn 的三合一</h4>
+          <table>
+            <thead><tr><th>机制</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td>On-the-fly block thresholding</td><td>在 online softmax 过程中用 block proxy score 与阈值比较，<b>动态且可控</b>的 block 预算</td></tr>
+              <tr><td>Proxy-score reuse</td><td>未选中 block <b>复用 proxy 分数近似其贡献</b>，而不是丢弃 → 近似校正</td></tr>
+              <tr><td>No routing map</td><td>无需物化完整 routing map，一次 pass 完成</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="formula">
+        <span class="lbl">核心 API（tau 越大，精确计算的 KV block 越少）</span>
+        out = sol_attn( q , k , v , <span class="hl">tau=1.0</span> , thresh_type="exact" )<br>
+        <span class="lbl">把 valid text 的 K/V block 钉成精确（64-token block 粒度）</span>
+        out = sol_attn( q , k , v , tau=1.0 , sink_start=0 , sink_tokens=valid_text_tokens )
+      </div>
+
+      <h4>Kernel 支持矩阵</h4>
+      <table>
+        <thead><tr><th>GPU</th><th>架构</th><th>执行</th></tr></thead>
+        <tbody>
+          <tr><td>RTX 4090</td><td>SM89</td><td>CuTe DSL</td></tr>
+          <tr><td>H100</td><td>SM90</td><td>CuTe DSL（含 split-KV）</td></tr>
+          <tr><td>B200 / GB200</td><td>SM100</td><td>CuTe DSL</td></tr>
+          <tr><td>RTX 5090</td><td>SM120</td><td>CuTe DSL</td></tr>
+          <tr><td>A100</td><td>SM80</td><td>Triton reference</td></tr>
+          <tr><td>Apple M 系列</td><td>Apple Silicon</td><td>Metal（需 <code>torch.mps.compile_shader</code>）</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">Kernel <b>forward-only</b>，要求 contiguous BF16 Q/K/V、BTHD 布局、head dim = 128；H100 支持 <code>kv_splits=1/2/4</code>，SM90 且序列 ≥65,536 token 时自动选 split 4；<code>SOL_ATTN_STRICT=1</code> 让集成错误直接抛错，避免把 dense 跑当成 sparse 上报。依赖 Python ≥3.10 / PyTorch ≥2.10 / CUDA ≥12.8 / Triton ≥3.6。</p>
+
+      <div class="grid2" style="margin-top:14px">
+        <figure><img src="assets/ltx25-5090-dense.jpg" alt="LTX-2.5 dense refiner"><figcaption>LTX-2.5 refiner（RTX 5090）· dense</figcaption></figure>
+        <figure><img src="assets/ltx25-5090-solattn.jpg" alt="LTX-2.5 Sol-Attn refiner"><figcaption>LTX-2.5 refiner（RTX 5090）· Sol-Attn</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- Agent workflow -->
+  <section id="agent">
+    <div class="sec-head"><div class="sec-num">④</div><h2>Agent-native 工作流与质量门</h2></div>
+    <p class="sec-sub">这套流程承认一件不太体面但真实的事：官方给的安装/下载/推理指南在不同机器上未必能直接跑通，所以它把"排障与改写"写进了目标里。</p>
+
+    <div class="card">
+      <h3>把 goal 交给 agent</h3>
+      <div class="snippet"><span class="c"># 在 Claude Code / Codex 里直接下发的 goal（README 原文节选）</span>
+/goal Execute the inference code for the three models using both baseline and full-opt
+settings ... Refer to <span class="k">AGENTS.md</span> for the environment creation, model download,
+and inference guides. ... the provided guides may contain system incompatibilities,
+so you are expected to <span class="k">troubleshoot and adapt them</span> to your specific machine.</div>
+
+      <h4>编排模式</h4>
+      <table>
+        <thead><tr><th>模式</th><th>结构</th><th>适用</th></tr></thead>
+        <tbody>
+          <tr><td><b>轻量</b></td><td>1 个 master orchestrator 监督至多 <b>3 个 executor</b>（kernel / cache / sparse-PISA），各自在独立搜索空间探索（detached、watchdog 守护），返回已验证 config，master 负责 gate、去重、集成</td><td>新模型上的快速有界扫描</td></tr>
+          <tr><td><b>完整框架</b></td><td>每技术一个 executor 节点，更大的 fan-out 与多轮深度搜索</td><td>深度优化</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Config 契约与运行产物</h4>
+      <p style="font-size:14.5px">每个优化都是一份 <b>config manifest</b>：id、kind（<code>baseline</code> / <code>patch</code> / <code>control</code>）、runtime、开启技术的环境变量、eval profile。单一 launcher 渲染可复现 run bundle：<code>runs/&lt;timestamp&gt;-&lt;id&gt;/</code> 含 <code>launch.sh</code>、<code>manifest.resolved.toml</code>、<code>metadata.json</code> 与 <code>outputs/</code>（视频 + <code>benchmark.json</code>，记录实际选中的 backend）。</p>
+      <div class="snippet">python3 scripts/run.py config/&lt;model&gt;/&lt;arm&gt;.toml
+python3 scripts/run.py config/wan22_ti2v_5b/baseline.toml <span class="c"># baseline</span>
+python3 scripts/run.py config/wan22_ti2v_5b/wan5b_kernel_easycache_pisa.toml
+python3 scripts/run.py &lt;config&gt; --print      <span class="c"># 只解析+检查路径</span>
+python3 scripts/run.py &lt;config&gt; --set WAN22_STEPS=4 --set WAN22_WARMUP_PASSES=0</div>
+
+      <h4>三重质量门（不允许只看 wall-clock）</h4>
+      <table>
+        <thead><tr><th>门</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>LPIPS</td><td>与冻结的 baseline 帧对比</td></tr>
+          <tr><td>多模态视觉门</td><td>托管 VLM 按 rubric 对 baseline vs config 并排评审：雪花/斑点、模糊、马赛克与 patch 边界、banding、ghosting、融化、时序闪烁、连贯性与运动退化</td></tr>
+          <tr><td><b>Authenticity check</b></td><td>确认技术确实生效（PISA 真的写了统计、cache 真的跳了步），使"空转优化"无法报出假 speedup</td></tr>
+        </tbody>
+      </table>
+
+      <h4>报告约定</h4>
+      <ul style="font-size:14.5px;padding-left:20px;line-height:1.9">
+        <li>speedup 必须写明分母（single-GPU / same-topology / vs-naive），<b>不得静默混用</b>；</li>
+        <li>计时<b>排除模型加载</b>，取官方验证 prompt 上的<b>中位数</b>，<b>同 seed</b>；</li>
+        <li>改变浮点归约顺序或 attention 稀疏性的优化，标注为 <b>non–bit-exact</b>。</li>
+      </ul>
+
+      <h4>搜索空间契约 <code>search_space/</code></h4>
+      <div class="chips">
+        <span class="chip">01_cache</span>
+        <span class="chip">02_token_pruning</span>
+        <span class="chip">03_quantization</span>
+        <span class="chip">04_sparse_attention</span>
+        <span class="chip">05_kernel_fusion</span>
+        <span class="chip">06_parallel_topology</span>
+      </div>
+      <p class="muted" style="font-size:13.5px">目录自我定位是"方法族与轴线的命名契约"，<b>不是</b>固定超参网格；04 里列出 PISA、SVG 式时空路由、SVG2 语义置换、AdaSpa 在线搜索与 mask 复用、SpargeAttn proxy mask、LVSA 旋转锚点、SVOO QK 共聚类、HASTE head-wise 预算、MInference 式动态模式等方向。该目录是从内部仓库 <code>cosmos_exp</code> ref 导入的快照（source commit <code>4049c2a0</code>，2026-06-15）。</p>
+    </div>
+  </section>
+
+  <!-- 模型矩阵 -->
+  <section id="matrix">
+    <div class="sec-head"><div class="sec-num">⑤</div><h2>模型矩阵与全部加速数字</h2></div>
+    <p class="sec-sub">同一个引擎，11 条加速线，覆盖 2B 到 64B、dense 与 MoE、图像/视频/音视频三类模型。</p>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>模型</th><th>参数量</th><th>加速线</th><th>Speedup</th></tr></thead>
+        <tbody>
+          <tr><td>Cosmos3-Super（4×B200）</td><td>64B</td><td>TeaCache + step-selective NVFP4</td><td><b>~2.27×</b></td></tr>
+          <tr><td>LTX-2.3（1×B200）</td><td>22B</td><td>kernel fusion + cache + PISA + NVFP4 + token-prune</td><td><b>~2.38×</b>（docs 记 2.40×）</td></tr>
+          <tr><td>SANA-Video（1×B200）</td><td>2B</td><td>EasyCache + kernel fusion + compile</td><td><b>~2.77×</b></td></tr>
+          <tr><td>Wan2.2 TI2V-5B（1×GB200）</td><td>5B</td><td>EasyCache + kernel fusion + compile</td><td><b>~2.89×</b></td></tr>
+          <tr><td>Wan2.2-A14B（1×GB200）</td><td>14B MoE</td><td>kernel fusion + EasyCache + PISA</td><td><b>~2.17×</b></td></tr>
+          <tr><td>LingBot-Video（4×GB200）</td><td>30B-A3B MoE</td><td>kernel fusion + refiner PISA + EasyCache</td><td><b>~2.60×</b></td></tr>
+          <tr><td>HunyuanVideo-13B</td><td>13B</td><td>kernel fusion + TeaCache + <b>Sol-Attn</b></td><td><b>~5.03×</b></td></tr>
+          <tr><td>Wan2.1-T2V-14B</td><td>14B</td><td>kernel fusion + EasyCache + <b>Sol-Attn</b></td><td><b>~3.48×</b></td></tr>
+          <tr><td>LTX-2.5（4×B200）</td><td>22B</td><td>parallelism + FBCache + kernel fusion</td><td><b>~4.68×</b>（distilled 1.90×）</td></tr>
+          <tr><td>MiniMax-H3（8×GB200）</td><td>—</td><td>context parallel + kernel fusion + <b>Sol-Attn</b> + FirstBlockCache</td><td><b>~3.95×</b></td></tr>
+          <tr><td><b>MiniMax-H3 Super Acceleration</b></td><td>—</td><td>4-step H3 draft + 3-step LTX-2.5 refine + Sol-Attn + fusion</td><td><b>22.2×（5 s）/ 27.7×（10 s）</b></td></tr>
+        </tbody>
+      </table>
+
+      <h4>同一模型在不同硬件上的加速（MiniMax-H3 系列，端到端）</h4>
+      <table>
+        <thead><tr><th>平台</th><th>8×GB200</th><th>DGX Spark (GB10)</th><th>RTX 5090</th><th>RTX 4090</th><th>4×H100</th><th>4×A100</th></tr></thead>
+        <tbody>
+          <tr><td>Speedup</td><td><b>3.95×</b></td><td><b>3.92×</b></td><td><b>4.52×</b></td><td><b>4.44×</b></td><td><b>3.56×</b></td><td><b>3.55×</b></td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">口径：warm end-to-end latency vs 未优化的<b>同拓扑</b> baseline；模型、prompt/seed、分辨率、步数、batch size、GPU 拓扑全部固定。</p>
+    </div>
+  </section>
+
+  <!-- 四个案例 -->
+  <section id="cases">
+    <div class="sec-head"><div class="sec-num">⑥</div><h2>四个旗舰案例</h2></div>
+    <p class="sec-sub">从"比播放更快"到"单卡一分钟出 768p"，再到把两个模型串成一个 22× 的组合流水线。</p>
+
+    <div class="card">
+      <h3>案例一 · Sol-H3 on 8×B300：5 秒视频 1.653 s</h3>
+      <figure><img src="assets/sol-h3-b300-poster.jpg" alt="Sol-H3 on 8×B300"><figcaption>Sol-H3 在 8×NVIDIA B300 上生成 1344×768 / 24 FPS 带原生音频视频（MiniMax-H3 Base Ref2VA，50 步，经 Sol-Engine 生成）。</figcaption></figure>
+      <table>
+        <thead><tr><th>GPU 数</th><th>输出时长</th><th>Base H3（dense, 50 步）</th><th>Sol-H3（4 步）</th><th>加速</th></tr></thead>
+        <tbody>
+          <tr><td>1×B300</td><td>5 / 10 / 15 s</td><td>129.898 / 376.942 / 746.885 s</td><td><b>13.745 / 37.813 / 52.260 s</b></td><td>9.45× / 9.97× / 14.29×</td></tr>
+          <tr><td>4×B300</td><td>5 / 10 / 15 s</td><td>35.328 / 100.440 / 194.930 s</td><td><b>2.918 / 6.993 / 12.542 s</b></td><td>12.11× / 14.36× / 15.54×</td></tr>
+          <tr><td>8×B300</td><td>5 / 10 / 15 s</td><td>18.250 / 50.660 / 99.513 s</td><td><b>1.653 / 3.732 / 6.612 s</b></td><td>11.04× / 13.57× / 15.05×</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">1344×768、24 FPS、同 prompt 与 seed <code>20260903</code>、reference-free T2VA + 立体声；Base H3 用 50 scheduler points（49 次 DiT forward），Sol-H3 仅 <b>4 次 DiT forward</b>；数值为 1 次 warmup 后 3 次的<b>中位数</b>，含文本编码 / DiT 去噪 / 音视频 VAE 解码，<b>不含</b>模型加载、编译预热与 MP4 编码。可选 fused MXFP8 把 5 s 档降到 1.472 s；4×/8× 用 Sol-Attn + INT8 QKV / FP8 output transport。</p>
+      <h4>一个 kernel 级细节</h4>
+      <p style="font-size:14.5px">每个 block 直接读取自己的 cached slice，省掉两次 index 选择：跨 50 个 block × 4 步，<b>减少约 400 次小 kernel launch，每步避免约 26 GB 显存读取</b>，输出不变。</p>
+    </div>
+
+    <div class="card">
+      <h3>案例二 · Sol-H3 on DGX Spark：单卡 56 秒出 768p 5 秒</h3>
+      <figure><img src="assets/sol-h3-spark-cover.jpg" alt="Sol-H3 on DGX Spark"><figcaption>单张 NVIDIA DGX Spark 上，两阶段流水线先生成 384p draft，再 refine 到 1344×768 / 24 FPS。</figcaption></figure>
+      <div class="grid2">
+        <div>
+          <h4>延迟分解（56.17 s）</h4>
+          <table>
+            <thead><tr><th>环节</th><th>占比</th></tr></thead>
+            <tbody>
+              <tr><td>LTX 3-step refinement</td><td><b>44.0%</b></td></tr>
+              <tr><td>H3 4-step generation</td><td><b>35.2%</b></td></tr>
+              <tr><td>LTX VAE decode</td><td>12.5%</td></tr>
+              <tr><td>H3 upscaler + VAE adapter</td><td>3.8%</td></tr>
+              <tr><td>Qwen prompt encoding</td><td>2.4%</td></tr>
+              <tr><td>MP4 输出与音频 mux</td><td>1.3%</td></tr>
+              <tr><td>请求开销</td><td>0.9%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h4>同平台对比</h4>
+          <table>
+            <thead><tr><th>方案</th><th>延迟</th></tr></thead>
+            <tbody>
+              <tr><td>4-step LoRA</td><td>374 s</td></tr>
+              <tr><td>4-step LoRA + quant</td><td>153 s</td></tr>
+              <tr><td><b>Sol-H3</b></td><td><b>56 s（6.7× faster）</b></td></tr>
+            </tbody>
+          </table>
+          <h4>默认 T2VA 配方要点</h4>
+          <ul style="font-size:14px;padding-left:20px;line-height:1.8">
+            <li>常驻 NVFP4 AWQ Qwen 编码 prompt；</li>
+            <li>Draft：H3 + FastH3 VSA DataFree LoRA + W8A8 FP8 DiT，4 次更新 @672×384×124；</li>
+            <li>Draft attention：VSA，<b>90% video sparsity</b>，64-token block，cuDNN BSA 后端；</li>
+            <li>Latent 传递：H3 ×2 upscaler → H3-to-LTX VAE latent adapter（<b>替代中间 VAE 解码+编码</b>）；</li>
+            <li>Refine：BF16 LTX-2.5 dev + distilled LoRA 450（strength 0.8），3 次联合音视频更新；</li>
+            <li>Refiner attention：Triton Sol-Attn，step 阈值 1 / 1.25 / 1.5，第一层 dense。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>案例三 · H3 Super Acceleration：22.2× / 27.7×</h3>
+      <p style="font-size:14.5px">Stage 1 用 4-step H3（896×512、124 帧、24 FPS，LightX2V 四步 LoRA 启动时合并）出 draft；Stage 2 用 LTX-2.5 三步 refine（x2 latent upsampler + 原 VAE 高分辨率首帧条件 + 原 Audio VAE）。实测 <b>768p 5 秒 6.852 s、10 秒 14.931 s</b>，对已发布 SGLang baseline 为 <b>22.2× / 27.7×</b>。</p>
+      <div class="grid2">
+        <figure><img src="assets/h3super-reference-768p.jpg" alt="参考图"><figcaption>参考图（768p / 5 s）</figcaption></figure>
+        <figure><img src="assets/h3super-solattn-refiner-768p.jpg" alt="Sol-Attn refiner 输出"><figcaption>Sol-Attn refiner 输出</figcaption></figure>
+      </div>
+      <p class="muted" style="font-size:13.5px">该路径改变了采样轨迹，与 baseline <b>非 bit-exact</b>；细节/纹理/运动/音频可能有差异——项目页把成对视频摆在页面上让人自行判断。</p>
+      <h4>benchmark 纪律（值得单独记一笔）</h4>
+      <table>
+        <thead><tr><th>项</th><th>数值 / 声明</th></tr></thead>
+        <tbody>
+          <tr><td>formal Slurm job <code>6304303</code></td><td>20 次热请求（两个 pair 各 10 次）；排除模型加载、编译预热、每阶段一次完整 warmup</td></tr>
+          <tr><td>H3 Stage1 → 最终 Stage2 MP4</td><td>中位数 <b>6.7605 s</b></td></tr>
+          <tr><td>Stage 1 wall / Stage 2 常驻服务</td><td>4.2919 s / 2.4469 s</td></tr>
+          <tr><td>主动声明</td><td>该 v2 profile <b>没有配对端到端 baseline → 不宣称 speedup</b>；<b>没有跑感知质量门 → "媒体/遥测校验通过"不得被描述为"质量通过"</b></td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">工程细节：两阶段常驻两张 GB200（4 卡验证跑两个独立 pair 并发，<b>不是</b> 4 路 TP/CP/模型并行）；handoff 走认证 loopback TCP 而非中间 MP4，传 BF16 视频张量 <code>[1,3,121,384,672]</code> 与 FP32 32 kHz 立体声 PCM <code>[1,2,161333]</code>，Stage 1 等 Stage 2 确认张量已驻留 CUDA 才返回；Stage 2 在 sigma `0.909375 / 0.725 / 0.421875 / 0.0` 做 3 次联合更新，layer 0 dense、layer 1–47 严格 Sol-Attn（τ = 1.0 / 1.25 / 1.5），只编译 48 个 block。生产估算：单张 GB200 约 12.6K 条 5 秒 / 天（30 天 378K 条）。</p>
+    </div>
+
+    <div class="card">
+      <h3>案例四 · LTX-2.5：多步与蒸馏两条路径</h3>
+      <table>
+        <thead><tr><th>维度</th><th>Multi-step Pipeline</th><th>Distilled Pipeline</th></tr></thead>
+        <tbody>
+          <tr><td>Stage 1 / Stage 2 步数</td><td>30 / 2</td><td>8 / 3</td></tr>
+          <tr><td>CFG</td><td>有</td><td>无</td></tr>
+          <tr><td>精度</td><td>BF16 / INT8</td><td>BF16 / INT8 / <b>NVFP4</b></td></tr>
+        </tbody>
+      </table>
+      <h4>多步路径在 4×B200（BF16）的逐项累积</h4>
+      <table>
+        <thead><tr><th>配置</th><th>Baseline(SP)</th><th>+Parallel</th><th>+FBCache</th><th>+Kernel Fusion</th><th>总加速</th></tr></thead>
+        <tbody>
+          <tr><td>1536×1024 · 5 s</td><td>39.23 s</td><td>14.14 s (2.77×)</td><td>11.09 s (1.28×)</td><td><b>8.38 s</b> (1.32×)</td><td><b>4.68×</b></td></tr>
+          <tr><td>4K · 5 s</td><td>75.57 s</td><td>63.66 s (1.19×)</td><td>46.29 s (1.38×)</td><td><b>38.49 s</b> (1.20×)</td><td><b>1.96×</b></td></tr>
+          <tr><td>1080p · 20 s</td><td>92.45 s</td><td>59.65 s (1.55×)</td><td>44.71 s (1.33×)</td><td><b>36.69 s</b> (1.22×)</td><td><b>2.52×</b></td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">三条优化的分工：<b>Diffusion Cache</b>（First Block Cache 复用稳定残差，Stage 1 性能近 +50%）；<b>Parallelism</b>（用 4 路 CFG 分支分摊 guidance，而非 sequence parallelism——第一段 token 序列短，SP 通信开销过大）；<b>Kernel</b>（cache-aware 编译 + 融合，Block 0 作缓存决策点，cache miss 才跑其后已编译 block）。蒸馏路径在单卡（B200 / RTX 5090 / DGX Spark）报告 <b>1.90×</b>。</p>
+    </div>
+  </section>
+
+  <!-- 工程结构 + 局限 -->
+  <section id="repo">
+    <div class="sec-head"><div class="sec-num">⑦</div><h2>工程结构与可复现性</h2></div>
+    <div class="card">
+      <table>
+        <thead><tr><th>维度</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>分支规模</td><td>1,448 个文件 / 约 45.7 MB（tree API 口径）；shallow clone 约 64 MB；<b>862 个 .py / 215,443 行</b></td></tr>
+          <tr><td>Config</td><td><code>config/</code> 下 <b>90 个 .toml</b>，按模型分目录（cosmos3 / ltx23 / minimax_h3 / wan22_ti2v_5b / wan22_t2v_a14b / lingbot_video / sana_video / hunyuan_video / wan21_t2v_14b …）+ 技术维度目录（sparse_attention / step_cache / token_prune / nvfp4_ffn / kwl_fusion）</td></tr>
+          <tr><td>模型运行时</td><td><code>models/&lt;model&gt;/</code>，如 <code>models/minimax_h3/</code> 下按平台分 GB200 / H100 / A100 / GB10 / RTX4090 / RTX5090 / Sol-H3 / Sol-H3-Spark / super_acceleration</td></tr>
+          <tr><td>技术实现</td><td><code>techniques/</code>：methods（teacache / step_cache / payload_cache / token_prune）、transforms（kwl_fusions / nvfp4_ffn / sparse_attention）、compose / config_manifest / spec / registry / schedule / selftest；<code>techniques/sparse_backends/sol_attn/</code> 含 CuTe kernel、Triton 参考实现与 Metal 后端</td></tr>
+          <tr><td>运行入口</td><td><code>python3 scripts/run.py config/&lt;model&gt;/&lt;arm&gt;.toml</code>；产物落在 <code>runs/&lt;timestamp&gt;-&lt;id&gt;/</code></td></tr>
+          <tr><td>环境</td><td>CUDA 13（torch 2.11+cu130）、Python 3.12、diffusers 0.38；Cosmos3-Super(64B) 需 4 GPU，SANA-Video / LTX-2.3 单卡可跑</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="limits">
+    <div class="sec-head"><div class="sec-num">⑧</div><h2>局限与注意事项</h2></div>
+    <div class="card">
+      <ul style="font-size:14.5px;padding-left:20px;line-height:2">
+        <li><b>加速不是无损</b>：改变浮点归约顺序或 attention 稀疏性的优化明确标注 non–bit-exact；H3 Super Acceleration 自述"这不是无损加速，采样路径已改变"；</li>
+        <li><b>分母纪律</b>：所有 speedup 都对应明确 baseline（single-GPU / same-topology / vs-naive），计时排除模型加载、取中位数、同 seed，不同分母不可混用；</li>
+        <li><b>质量门 ≠ 质量结论</b>：v2 profile 因缺配对 baseline 与感知质量门，主动声明不宣称 speedup、不宣称质量通过；</li>
+        <li><b>硬件/后端依赖</b>：NVFP4 需 Blackwell + TransformerEngine（否则回退 BF16）；Sol-Attn 的发布 speedup 基于 CuTe DSL kernel，A100 等回退 Triton reference（正确但非发布口径）；Metal 需 <code>torch.mps.compile_shader</code>；</li>
+        <li><b>Kernel 限制</b>：Sol-Attn kernel 目前 forward-only，要求 contiguous BF16、BTHD、head dim 128；</li>
+        <li><b>仍需人</b>：To-do 里 "agent-native workflow without human-in-the-loop" 尚未完成，论文也把 human validator 列为流程一环；</li>
+        <li><b>实现分散在两处</b>：部分 attention / token-prune backend 位于 SGLang 的 <code>multimodal_gen</code> runtime，复现需同时拉上游仓库；<code>search_space/</code> 是内部仓库导入的快照。</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot">
+    <b>来源</b>
+    <div class="ref">· 代码：<a href="https://github.com/NVlabs/Sana/tree/sol-engine">NVlabs/Sana · branch <code>sol-engine</code></a>（HEAD <code>8e0db4fa</code>，2026-09-11）· 说明：<a href="https://github.com/NVlabs/Sana/blob/sol-engine/AGENTS.md">AGENTS.md</a> / <a href="https://github.com/NVlabs/Sana/blob/sol-engine/QUICKSTART.md">QUICKSTART.md</a></div>
+    <div class="ref">· 论文：<a href="https://arxiv.org/abs/2606.23743">Sol Video Inference Engine（arXiv:2606.23743）</a> · <a href="https://arxiv.org/abs/2607.24027">Sol-Attn（arXiv:2607.24027）</a></div>
+    <div class="ref">· 文档与项目页：<a href="https://nvlabs.github.io/Sana/Sol-Engine/docs/">Docs</a> · <a href="https://nvlabs.github.io/Sana/Sol-Engine/">Homepage</a> · <a href="https://nvlabs.github.io/Sana/Sol-Engine/Sol-H3/">Sol-H3</a> · <a href="https://nvlabs.github.io/Sana/Sol-Engine/Sol-H3-Spark/">Sol-H3-Spark</a> · <a href="https://nvlabs.github.io/Sana/Sol-Engine/LTX25/">LTX-2.5</a> · <a href="https://nvlabs.github.io/Sana/Sol-Engine/H3-Super-Acceleration/">H3 Super Acceleration</a></div>
+    <div class="ref" style="margin-top:10px">※ 本页依据 `sol-engine` 分支（含 README、site_docs、AGENTS.md、search_space）与官方项目页通读整理，快照 2026-09-14。图片版权归 NVIDIA 及原作者所有。</div>
+  </div>
+</footer>
+
+<script>
+  const bar = document.getElementById('progress');
+  addEventListener('scroll', () => {
+    const h = document.documentElement;
+    bar.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  }, {passive:true});
+
+  const links = document.querySelectorAll('nav a[data-spy]');
+  const map = {};
+  links.forEach(a => map[a.getAttribute('href').slice(1)] = a);
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(a => a.classList.remove('active'));
+        (map[e.target.id] || {classList:{add(){}}}).classList.add('active');
+      }
+    });
+  }, {rootMargin:'-30% 0px -60% 0px'});
+  document.querySelectorAll('main section[id]').forEach(s => obs.observe(s));
+</script>
+
+</body>
+</html>
