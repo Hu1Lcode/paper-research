@@ -66,3 +66,21 @@ Black Forest Labs 多模态流匹配基础模型（"真实世界模型"）调研
 - 内容：图像+视频+音频联合训练的统一 DiT 流匹配（视频占 >95% 算力、音频 <0.5% token）、Self-Flow 自监督流匹配（Dual-Timestep Scheduling 双时间步信息不对称，零外部模型超越 REPA）、操作成功率 42%→71%、FLUX-mimic 冻结骨干动作解码（部署 Audi、RTX 5090 <80ms）、20s 原生音频视频、发布矩阵（Video/Image/Action/Dev 开源）
 - 来源：官方博客 [*FLUX 3 — Real World Models*](https://bfl.ai/blog/flux-3)（2026-07-23）、[Self-Flow 研究页](https://bfl.ai/research/self-flow)（Chefer & Esser，BFL+MIT）与 [*FLUX 3 × mimic*](https://bfl.ai/blog/flux-3-mimic)
 - 配图：`flux3/assets/`
+
+### 8. [SolarWM](solarwm/)
+
+全开放的长时程视频世界模型基础栈（可重配置多源数据引擎 + backbone-native 适配框架）调研：
+
+- [SolarWM-架构与创新点详解.md](solarwm/SolarWM-架构与创新点详解.md)（另有 [HTML 版](solarwm/SolarWM-架构与创新点详解.html)）
+- 内容：**1,425,694** 条 canonical clips / 10 个源数据集 → 14 个可独立寻址 owner 的统一数据契约（metric-scale 相机标注 Pi3X+MoGe-2+VIPE、LTX-2.3 Clean Plate 543k clips、Kimi-K2.6 全量 caption 的 6 字段 JSON、source-aware 三档 quality tier）；4 个 5B–33B 模型的 native 保留清单（Wan2.2-5B/14B、LTX-2.5-22B、MiniMax-H3-33B）与 fused-PRoPE 统一相机条件化；三阶段配方（Bidirectional Adaptation → Teacher-Forced AnyFlow → DMD via Self-Gradient Forcing，省掉 Causal ODE / Causal CD 初始化）；**5 秒片段训练即可做分钟到 60 分钟级 rollout**，推理 16 fps / 4 步采样 / 无 attention sink
+- 来源：论文 [*SolarWM: Open Data and Scalable Training for Long-Horizon Video World Models*](https://arxiv.org/abs/2609.02886)（arXiv:2609.02886）与仓库 [github.com/Junchao-cs/SolarWM](https://github.com/Junchao-cs/SolarWM)
+- 配图：`solarwm/assets/`
+
+### 9. [Puffin-World](puffin-world/)
+
+S-Lab NTU 的统一多模态 3D 世界模型（三种原生世界状态：physics / geometry / appearance）调研：
+
+- [Puffin-World-架构与创新点详解.md](puffin-world/Puffin-World-架构与创新点详解.md)（另有 [HTML 版](puffin-world/Puffin-World-架构与创新点详解.html)）
+- 内容：**9 通道 Omni-Camera 表示**（gravity-aware 绝对 perspective field + ray-based 相对几何）；**physics propagation**（把参考视角感知到的重力方向沿轨迹传播，消融：PSNR 19.87→20.54、roll 误差 1.94°→1.76°）；latent 空间像素对齐的相机条件注入 + 多视角 joint-attention（view-axis 1D RoPE，无需一致性 loss）；Hilbert 可逆颜色映射让深度复用同一个 frozen VAE；chunked 自回归长轨迹；四阶段训练配方；**Puffin-16M**（15,338,221 单视角三元组 + 1,136,696 条轨迹，≈11.6 TB）与 28 个公开数据集 / ≈44.5M 图像的绝对相机标注；实验数字（相机理解 12/12 最优 median error、Puffin-Cam-Bench FID 75.93、RealEstate10K PSNR 17.22 / LPIPS 0.318、Puffin-Traj-Bench roll 0.80°）
+- 来源：论文 [*Puffin-World: Scaling a Unified Multimodal Model with Native 3D World States*](https://arxiv.org/abs/2609.04196)（arXiv:2609.04196）与 [官方项目页](https://kangliao929.github.io/projects/puffin-world/)、[GitHub](https://github.com/KangLiao929/Puffin)
+- 配图：`puffin-world/assets/`

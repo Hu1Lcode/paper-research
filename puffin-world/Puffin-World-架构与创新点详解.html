@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolarWM 解读 · 全开放的长时程视频世界模型</title>
+<style>
+  :root{
+    --ink:#0f172a; --ink-soft:#475569; --muted:#64748b;
+    --bg:#f6f8fb; --card:#ffffff; --line:#e2e8f0;
+    --accent:#6366f1;
+    --grad:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#06b6d4 100%);
+    --sun:linear-gradient(135deg,#f59e0b 0%,#ef4444 50%,#8b5cf6 100%);
+    --radius:16px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.75}
+  .progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--sun);z-index:100;transition:width .1s linear}
+
+  nav{position:sticky;top:0;z-index:90;background:rgba(255,255,255,.84);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .nav-inner{max-width:1060px;margin:0 auto;display:flex;align-items:center;gap:4px;padding:10px 20px;flex-wrap:wrap}
+  .nav-brand{font-weight:800;margin-right:12px;background:var(--sun);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:15px}
+  nav a{text-decoration:none;color:var(--ink-soft);font-size:13.5px;font-weight:600;padding:6px 11px;border-radius:999px;transition:.2s}
+  nav a:hover{background:#eef2ff;color:var(--accent)}
+  nav a.active{background:#eef2ff;color:var(--accent)}
+
+  header{background:radial-gradient(1100px 480px at 12% -10%,rgba(245,158,11,.30),transparent 60%),radial-gradient(900px 420px at 88% 6%,rgba(139,92,246,.38),transparent 62%),#0b1120;color:#f1f5f9;padding:68px 20px 58px}
+  .hero{max-width:1060px;margin:0 auto}
+  .hero .kicker{letter-spacing:.24em;font-size:12px;font-weight:700;color:#fcd34d;text-transform:uppercase}
+  .hero h1{font-size:clamp(28px,4.6vw,44px);font-weight:900;margin:14px 0 8px;line-height:1.25}
+  .hero h1 .g{background:var(--sun);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.sub{color:#cbd5e1;font-size:16px;max-width:850px;margin-top:10px}
+  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .tag{font-size:13px;padding:6px 14px;border:1px solid rgba(148,163,184,.4);border-radius:999px;color:#e2e8f0;background:rgba(148,163,184,.08)}
+  .hero .tag b{color:#fcd34d;font-weight:700}
+  .hero .authors{margin-top:20px;font-size:13px;color:#94a3b8;line-height:1.9}
+  .hero .authors b{color:#cbd5e1}
+
+  main{max-width:1060px;margin:0 auto;padding:0 20px 90px}
+  section{padding-top:56px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-num{flex:none;width:42px;height:42px;border-radius:12px;background:var(--sun);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;box-shadow:0 8px 20px rgba(245,158,11,.34)}
+  h2{font-size:26px;font-weight:800}
+  .sec-sub{color:var(--muted);font-size:15px;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px 28px;margin-bottom:22px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h3{font-size:19px;font-weight:800;margin:0 0 12px}
+  h4{font-size:15px;font-weight:800;margin:18px 0 8px;color:#9a3412}
+  .muted{color:var(--muted)}
+  code,.code{font-family:var(--mono);font-size:13px;background:#f1f5f9;padding:2px 6px;border-radius:5px}
+
+  .callout{border-radius:var(--radius);padding:18px 22px;margin-bottom:20px;color:#fff;background:linear-gradient(135deg,#7c2d12,#b45309 55%,#6d28d9);box-shadow:0 12px 30px rgba(124,45,18,.3)}
+  .callout .t{font-weight:800;font-size:13.5px;letter-spacing:.1em;opacity:.88;margin-bottom:3px}
+  .callout p{font-size:16px;line-height:1.75}
+  .callout.warn{background:linear-gradient(135deg,#78350f,#b45309 60%,#a16207)}
+  .callout.blue{background:linear-gradient(135deg,#312e81,#4338ca 60%,#0e7490);box-shadow:0 12px 30px rgba(49,46,129,.3)}
+  .callout.green{background:linear-gradient(135deg,#064e3b,#047857 60%,#0e7490);box-shadow:0 12px 30px rgba(6,78,59,.3)}
+
+  .statbar{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:820px){.statbar{grid-template-columns:repeat(2,1fr)}}
+  .statbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .statbox b{display:block;font-size:21px;font-weight:900;background:var(--sun);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.3}
+  .statbox span{font-size:12.5px;color:var(--muted)}
+
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:820px){.pillars{grid-template-columns:1fr}}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;border-top:4px solid #f59e0b}
+  .pcard:nth-child(2){border-top-color:#8b5cf6}
+  .pcard:nth-child(3){border-top-color:#06b6d4}
+  .pcard b{display:block;font-size:15.5px;margin-bottom:6px}
+  .pcard p{font-size:14px;color:var(--ink-soft)}
+
+  table{width:100%;border-collapse:collapse;font-size:13.8px;margin:6px 0}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}
+  th{background:#f1f5f9;font-size:12.3px;letter-spacing:.04em;color:var(--ink-soft);text-transform:uppercase}
+  tr:last-child td{border-bottom:none}
+  td code{font-size:12.2px}
+  @media(max-width:820px){table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}}
+
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:14px 0 4px}
+  .step{flex:1 1 150px;min-width:150px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13.3px}
+  .step b{display:block;font-size:13px;margin-bottom:3px}
+  .step span{color:var(--muted);display:block;line-height:1.5}
+  .step.hot{background:linear-gradient(135deg,#fff7ed,#fef3c7);border-color:#fcd34d}
+  .step.hot b{color:#b45309}
+  .flow .arrow{align-self:center;color:#94a3b8;font-size:17px;font-weight:700;flex:none}
+
+  .formula{background:#0b1120;color:#e2e8f0;border-radius:12px;padding:18px 22px;margin:12px 0;font-family:Georgia,"Times New Roman",serif;font-size:15.5px;line-height:2;overflow-x:auto}
+  .formula .hl{color:#fcd34d}
+  .formula .lbl{display:block;font-family:-apple-system,"PingFang SC",sans-serif;font-size:12.5px;font-style:normal;color:#94a3b8;margin-bottom:6px}
+  .snippet{background:#0b1120;color:#e2e8f0;border-radius:12px;padding:16px 20px;font-family:var(--mono);font-size:12.6px;line-height:1.85;overflow-x:auto;margin:10px 0;white-space:pre}
+  .snippet .c{color:#64748b}
+  .snippet .k{color:#c4b5fd}
+  .snippet .s{color:#86efac}
+  .tree{background:#0b1120;color:#e2e8f0;border-radius:14px;padding:20px 22px;font-family:var(--mono);font-size:12.6px;line-height:1.9;overflow-x:auto;white-space:pre}
+  .tree .d{color:#fcd34d;font-weight:700}
+  .tree .c{color:#64748b}
+  .tree .hl{color:#fca5a5}
+  @media(max-width:760px){.tree{font-size:11.2px}}
+
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+  .chip{font-size:12.6px;padding:6px 12px;border-radius:9px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-weight:600;font-family:var(--mono)}
+  .chip.v{background:#f5f3ff;border-color:#ddd6fe;color:#6d28d9}
+  .chip.c{background:#ecfeff;border-color:#a5f3fc;color:#0e7490}
+  .chip.g{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+  .chip.grey{background:#f1f5f9;border-color:#e2e8f0;color:#475569}
+
+  .timeline{position:relative;padding-left:26px}
+  .timeline:before{content:'';position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:var(--sun)}
+  .tl{position:relative;padding:0 0 16px 6px}
+  .tl:before{content:'';position:absolute;left:-24px;top:7px;width:10px;height:10px;border-radius:50%;background:#fff;border:2.5px solid #f59e0b}
+  .tl .when{font-size:12px;font-weight:800;color:#b45309;letter-spacing:.04em}
+  .tl .what{font-size:14.5px}
+
+  .quote{border-left:4px solid #f59e0b;background:#fffbeb;border-radius:0 14px 14px 0;padding:18px 22px;font-size:15.5px;color:#78350f;font-weight:600;margin:8px 0 20px}
+
+  footer{border-top:1px solid var(--line);background:#fff}
+  .foot{max-width:1060px;margin:0 auto;padding:28px 20px;color:var(--muted);font-size:13px}
+  .foot a{color:var(--accent);text-decoration:none}
+  .foot .ref{margin-top:6px}
+</style>
+
+<style>
+  :root{--sun:linear-gradient(135deg,#0284c7 0%,#6366f1 50%,#8b5cf6 100%)}
+  header{background:radial-gradient(1100px 480px at 12% -10%,rgba(2,132,199,.32),transparent 60%),radial-gradient(900px 420px at 88% 6%,rgba(139,92,246,.36),transparent 62%),#0b1120}
+  .hero h1 .g{background:var(--sun);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sec-num{box-shadow:0 8px 20px rgba(2,132,199,.34)}
+  .pcard{border-top-color:#0284c7}
+  .pcard:nth-child(2){border-top-color:#6366f1}
+  .pcard:nth-child(3){border-top-color:#8b5cf6}
+  .callout{background:linear-gradient(135deg,#0c4a6e,#4338ca 55%,#6d28d9);box-shadow:0 12px 30px rgba(12,74,110,.3)}
+  figure{margin:18px 0 6px}
+  figure img{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
+  figcaption{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<nav>
+  <div class="nav-inner">
+    <span class="nav-brand">Puffin-World 解读</span>
+    <a href="#overview" data-spy>速览</a>
+    <a href="#omnicam" data-spy>Omni-Camera</a>
+    <a href="#arch" data-spy>统一架构</a>
+    <a href="#physics" data-spy>物理传播</a>
+    <a href="#recipe" data-spy>训练配方</a>
+    <a href="#data" data-spy>数据引擎</a>
+    <a href="#exp" data-spy>实验结果</a>
+    <a href="#take" data-spy>局限与开源</a>
+  </div>
+</nav>
+
+<header>
+  <div class="hero">
+    <div class="kicker">arXiv 2609.04196 · S-Lab NTU · 2026.09</div>
+    <h1>Puffin-World：用<span class="g">三种原生 3D 世界状态</span>统一感知、模拟与重建</h1>
+    <p class="sub">它不再把世界当成一串 RGB 帧，而是同时建模 <b>physics</b>（重力场与纬度图）、<b>geometry</b>（深度）与 <b>appearance</b>（图像）。核心是 <b>9 通道 Omni-Camera 表示</b>（绝对重力朝向 + 相对射线几何）与 <b>physics propagation</b>（把参考视角感知到的绝对重力方向沿轨迹传播），让相机可控生成与多视角 3D 重建在<b>同一个模型、同一次去噪</b>里完成。</p>
+    <div class="meta">
+      <span class="tag"><b>16.5M</b> 样本 · <b>11.6 TB</b></span>
+      <span class="tag"><b>44.5M</b> 图像绝对相机标注</span>
+      <span class="tag">roll 误差 <b>0.26°</b>（LaMAR）</span>
+      <span class="tag">Puffin-Cam-Bench FID <b>75.93</b></span>
+      <span class="tag">RealEstate10K PSNR <b>17.22</b></span>
+      <span class="tag">3 个 checkpoint（2.8 / 26.7 / 37.5 GB）</span>
+    </div>
+    <div class="authors">
+      <b>作者</b>：Kang Liao, Yihang Luo, Xiao-Ming Wu, Linyi Jin, Size Wu, Chunyu Lin, Yao Zhao, Fei Wang, Wei Li, Chen Change Loy<br>
+      <b>机构</b>：S-Lab, Nanyang Technological University · University of Michigan · Beijing Jiaotong University · ACE Robotics
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- 速览 -->
+  <section id="overview">
+    <div class="sec-head"><div class="sec-num">①</div><h2>一句话与三种世界状态</h2></div>
+    <p class="sec-sub">论文的定位不是"再强一点的图像/视频生成器"，而是让一个多模态模型同时具备 <b>物理理解、自由视角模拟、3D 生成与重建</b>，且不依赖任何外部离线模块。</p>
+
+    <div class="callout">
+      <div class="t">一句话</div>
+      <p>Puffin-World 用 <b>native 3D world states</b> 把"相机在世界里的绝对朝向"变成显式可建模、可生成、可传播的量：physics 给绝对锚点，geometry 给结构，appearance 给观感；再由一个 vision encoder + LLM + diffusion 的统一框架同时输出理解、生成与重建。</p>
+    </div>
+
+    <div class="statbar">
+      <div class="statbox"><b>15,338,221</b><span>Puffin-Cam-15M 单视角三元组</span></div>
+      <div class="statbox"><b>1,136,696</b><span>Puffin-Traj-1M 轨迹（每条 90 帧）</span></div>
+      <div class="statbox"><b>28 / 44.5M</b><span>被标注的公开数据集 / 图像</span></div>
+      <div class="statbox"><b>12/12</b><span>相机理解最优 median error</span></div>
+    </div>
+
+    <div class="pillars" style="margin-top:22px">
+      <div class="pcard">
+        <b>Physics World State</b>
+        <p>gravity field + latitude map。编码场景竖直性、地平线，以及每条视线的仰角——这是<b>唯一能把观测锚到真实世界</b>的状态，也是相对相机表示（Plücker 等）缺失的东西。</p>
+      </div>
+      <div class="pcard">
+        <b>Geometry World State</b>
+        <p>depth。既暴露外观背后的 3D 结构，也提供从"生成的多视角观测"到"直接 3D 重建"的桥梁；与 appearance <b>共享同一个 VAE latent 空间</b>。</p>
+      </div>
+      <div class="pcard">
+        <b>Appearance World State</b>
+        <p>RGB 图像与序列。关键在于它不是独立生成的，而是<b>与相机条件、几何条件联合去噪</b>产出。</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h3>它针对的两条既有路线</h3>
+      <table>
+        <thead><tr><th>既有路线</th><th>做到了什么</th><th>缺什么</th></tr></thead>
+        <tbody>
+          <tr><td>生成式世界模型<br><span class="muted">视频 / 多视角 diffusion</span></td><td>视觉保真度与可控制性大幅提升</td><td>几乎只在 <b>appearance 层</b>建模：相机物理朝向与场景几何都隐含；控制主要用<b>相对运动</b>，没有全局物理参照 → 同一相对轨迹可对应多个绝对朝向，长时程 / 大旋转下出现 orientation drift</td></tr>
+          <tr><td>统一多模态模型<br><span class="muted">理解 + 生成一个网络</span></td><td>把理解与生成放进同一模型</td><td>只覆盖 <b>2D 语义与外观</b>，相机假设被简化；生成与相机理解、几何重建仍是<b>彼此解耦</b>的独立任务</td></tr>
+          <tr><td>数据侧</td><td>相机/3D 数据集不少</td><td>普遍偏向"水平相机 + 小幅 pitch + 平移为主"：既有数据集的 roll 通常仅 <b>[−5°, 5°]</b>、pitch 仅 <b>[−10°, 10°]</b>，旋转多样性严重不足</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Omni-Camera -->
+  <section id="omnicam">
+    <div class="sec-head"><div class="sec-num">②</div><h2>Omni-Camera：9 通道统一相机表示</h2></div>
+    <p class="sec-sub">相对表示利于跨视角连续建模但没有全局锚；绝对表示有物理锚但难以从单目图像获得、也不便做跨视角过渡。Omni-Camera 把两者沿通道维拼接。</p>
+
+    <div class="card">
+      <div class="formula">
+        <span class="lbl">每个像素的相机条件（绝对在前、相对在后，固定通道顺序）</span>
+        c<sub>x</sub> = Concat( a<sub>x</sub> , p<sub>x</sub> ) ∈ <span class="hl">R<sup>9</sup></span> &nbsp;&nbsp;‖&nbsp;&nbsp; a<sub>x</sub> = ( u<sub>x</sub> , φ<sub>x</sub> ) ∈ R<sup>3</sup> ,&nbsp; p<sub>x</sub> ∈ R<sup>6</sup><br>
+        <span class="lbl">绝对：up-vector u<sub>x</sub> 与纬度角 φ<sub>x</sub> = arcsin( (−d<sub>x</sub>)ᵀ g / ‖d<sub>x</sub>‖₂ )；相对：ray origin o 与方向 d<sub>x</sub></span>
+        d<sub>x</sub> = Rᵀ K<sup>−1</sup> x̃ / ‖Rᵀ K<sup>−1</sup> x̃‖₂ &nbsp;&nbsp;‖&nbsp;&nbsp; o = −Rᵀ t &nbsp;&nbsp;‖&nbsp;&nbsp; p<sub>x</sub> = ( o , d<sub>x</sub> )
+      </div>
+      <table>
+        <thead><tr><th>分量</th><th>通道</th><th>含义</th><th>提供什么</th></tr></thead>
+        <tbody>
+          <tr><td>绝对</td><td>3</td><td>逐像素 up-vector（反重力方向在像平面的投影）与 latitude 角</td><td>gravity-aware 的<b>全局物理锚</b>：地平线、竖直性、朝向</td></tr>
+          <tr><td>相对</td><td>6</td><td>ray origin（全视角共享）+ 逐像素 ray direction</td><td><b>连续跨视角运动</b>：origin 变化 = 平移，direction 变化 = 旋转</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px;margin-top:10px">同一个稠密条件同时服务：单目相机理解、相机可控文生图、图像条件多视角生成、原地 roll/pitch/yaw 旋转、平移与复合运动、外观-几何联合生成。拼接得到的 <code>C ∈ R<sup>H×W×9</sup></code> 与图像同分辨率。</p>
+    </div>
+  </section>
+
+  <!-- 架构 -->
+  <section id="arch">
+    <div class="sec-head"><div class="sec-num">③</div><h2>统一架构：三个层次的 unification</h2></div>
+    <p class="sec-sub">框架 = geometry-aligned vision encoder + LLM + diffusion（MMDiT）+ 轻量 connector；"统一"来自三处设计，而不是任务专用的子网络。</p>
+
+    <div class="card">
+      <h3>① 表示统一 ② 模态统一 ③ 任务统一</h3>
+      <table>
+        <thead><tr><th>层次</th><th>做法</th></tr></thead>
+        <tbody>
+          <tr><td><b>表示统一</b></td><td>RGB 与深度共享同一 VAE latent 空间；所有相机配置由 Omni-Camera 表达；另有 <b>4 通道 role mask</b> <code>m ∈ R<sup>4×H×W</sup></code> 标记每个视角是「生成目标 / 条件参考 / 图像条件输入 / 几何视角」，与 C 一起送进同一个 condition fusion 模块</td></tr>
+          <tr><td><b>模态统一</b></td><td>vision encoder + LLM 产出自回归理解结果；<b>同一批 LLM hidden states</b> 经 64 个 learnable queries 与 6 层 connector 变换为 diffusion 条件——理解与生成是同一模型的两个输出</td></tr>
+          <tr><td><b>任务统一</b></td><td>任务由"可用输入"决定（text / target cameras / reference views / role mask）。改变输入组合即可切换：相机理解、相机可控 T2I、3D 世界生成、外观-几何联合重建</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>相机条件怎么注入：不做 cross-attention，直接在 latent 里相加</h3>
+      <div class="formula">
+        <span class="lbl">入口注入（F 零初始化，保持预训练生成器的初始行为）</span>
+        h<sup>0</sup> = P( z + <span class="hl">F([C ; m])</span> )<br>
+        <span class="lbl">在稀疏 transformer block 集合 L 上重注入，让每个 latent token 在多层被相机几何"钉住"</span>
+        h<sup>l</sup> ← h<sup>l</sup> + W<sub>l</sub> · P( F([C ; m]) ) ,&nbsp;&nbsp; l ∈ L
+      </div>
+      <p style="font-size:14.5px">前作 Puffin 把 3 通道 Perspective Field 经 VAE 编码后用 cross-attention 注入，受限于通道数与任务范围；Puffin-World 换成<b>像素对齐的加法注入</b>，支持多任务、多层 grounding，且参数开销可忽略。</p>
+      <h4>多视角：一次 attention 里做跨视角一致性</h4>
+      <p style="font-size:14.5px">T 个视角共用一条 joint-attention 序列：K 个参考视角以 clean latent 提供并同时进 vision encoder + LLM 供语义条件；T−K 个目标视角加噪后联合去噪。每个视角带自己的 Omni-Camera 条件，并分配 <b>view-axis index + 1D RoPE</b>——跨视角一致性由单次 attention 自然涌现，<b>不需要显式的一致性 loss</b>。</p>
+      <figure>
+        <img src="assets/pw-framework.webp" alt="Puffin-World 网络架构">
+        <figcaption>Puffin-World 网络架构：3D 世界理解、生成与重建共用一个框架，Omni-Camera 与 role mask 同时条件化参考视角与目标视角。</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 物理传播 -->
+  <section id="physics">
+    <div class="sec-head"><div class="sec-num">④</div><h2>物理传播：把绝对朝向沿轨迹传下去</h2></div>
+    <p class="sec-sub">相对运动告诉你"相机怎么动"，物理传播还告诉你"新相机相对真实世界如何朝向"。</p>
+
+    <div class="card">
+      <div class="formula">
+        <span class="lbl">先从参考视角感知绝对状态（roll φ₀、pitch θ₀、垂直 FoV α₀）得到参考系重力方向 g₀，再沿已知相对旋转传播</span>
+        <span class="hl">G = { g<sub>t</sub> }<sub>t=0..T−1</sub> = { R<sup>rel</sup><sub>t←0</sub> · g<sub>0</sub> }</span>
+      </div>
+      <p style="font-size:14.5px">各视角的 g<sub>t</sub> 再渲染成该视角的绝对相机表示，与相对 ray map 拼成完整 Omni-Camera 条件 → <b>整条轨迹共享一个 gravity-anchored 世界坐标系</b>，同时保留各自的相对运动。此外 physics propagation <b>跨整条序列（而非单 chunk）</b>施加，长轨迹因此保持 self-calibrated。</p>
+      <h4>消融：physics propagation 确实同时改善画质与物理 grounding</h4>
+      <table>
+        <thead><tr><th>轨迹类型</th><th>指标</th><th>Baseline</th><th>+ Physics Propagation</th></tr></thead>
+        <tbody>
+          <tr><td>Roll</td><td>PSNR / SSIM / LPIPS</td><td>22.97 / 0.69 / 0.12</td><td><b>24.02 / 0.74 / 0.10</b></td></tr>
+          <tr><td>Pitch</td><td>PSNR / SSIM / LPIPS</td><td>18.53 / 0.60 / 0.26</td><td><b>19.18 / 0.65 / 0.24</b></td></tr>
+          <tr><td>Yaw</td><td>PSNR / SSIM / LPIPS</td><td>18.12 / 0.59 / 0.30</td><td><b>18.42 / 0.62 / 0.30</b></td></tr>
+          <tr><td><b>平均</b></td><td>PSNR / SSIM / LPIPS</td><td>19.87 / 0.62 / 0.23</td><td><b>20.54 / 0.67 / 0.21</b></td></tr>
+          <tr><td><b>平均</b></td><td>Roll 误差 / Pitch 误差</td><td>1.94° / 5.14°</td><td><b>1.76° / 4.75°</b></td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">roll / pitch 与重力直接耦合，提升最大；yaw 绕重力轴旋转，画质增益小，但仍能抑制虚假地平线倾斜（pitch 误差 3.10° → 2.67°）。</p>
+    </div>
+  </section>
+
+  <!-- 训练配方 -->
+  <section id="recipe">
+    <div class="sec-head"><div class="sec-num">⑤</div><h2>四阶段训练配方</h2></div>
+    <p class="sec-sub">前两阶段建立"单视角理解 + 生成"的统一基座，后两阶段做 3D 世界建模的 post-training（先 RGB，再 RGB+深度）。</p>
+
+    <div class="card">
+      <div class="flow">
+        <div class="step"><b>Stage I 对齐</b><span>VE / LLM / DiT 冻结，只训 MLP projector、connector、condition tokenizer</span></div>
+        <div class="arrow">→</div>
+        <div class="step"><b>Stage II SFT</b><span>除 VAE 外全解冻；vision encoder 梯度 ×0.1</span></div>
+        <div class="arrow">→</div>
+        <div class="step hot"><b>Stage III 3D 世界建模</b><span>跨视角联合去噪；VE/LLM 冻结，训 connector + diffusion + condition fusion</span></div>
+        <div class="arrow">→</div>
+        <div class="step hot"><b>Stage IV RGB + 深度</b><span>激活几何分支，联合外观与深度（Table 1）</span></div>
+      </div>
+      <table style="margin-top:16px">
+        <thead><tr><th>超参</th><th>Stage I</th><th>Stage II</th><th>Stage III</th><th>Stage IV</th></tr></thead>
+        <tbody>
+          <tr><td>学习率</td><td>1e-4</td><td>2e-5</td><td>5e-5</td><td>2e-5</td></tr>
+          <tr><td>Batch size</td><td>512</td><td>512</td><td>256</td><td>128</td></tr>
+          <tr><td>数据采样比</td><td>Und. 0.5 / Gen. 0.5</td><td>0.5 / 0.5</td><td>Gen. 0.14 / Image→3D 0.86</td><td>0.09 / 0.91（RGB+Recon）</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">AdamW、cosine、weight decay 0.05、betas (0.9, 0.95)。图像与深度由 frozen VAE 编成 <b>16 通道</b> latent；3D 世界建模统一裁到 <b>640×640</b>；每条序列 <b>8 视角</b>（Stage III 参考视角随机 1–3，Stage IV 固定 1）；timestep 采 logit-normal(μ=0, σ=1) + 分辨率相关 shift（Stage III/IV 偏向高噪声）。Stage III 多源 repeat factor <b>3:2:1:1</b>（DL3DV / RealEstate10K / Puffin-Traj-1M / 单视角 rehearsal）。</p>
+      <div class="chips">
+        <span class="chip">推理 50 步采样</span>
+        <span class="chip v">CFG 4.5（单视角生成）</span>
+        <span class="chip v">CFG 2.0（3D 世界建模）</span>
+        <span class="chip c">理解 greedy decode</span>
+        <span class="chip g">条件 dropout p=0.1</span>
+        <span class="chip g">绝对 Perspective Field 单独 drop p=0.15</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>联合外观–几何：用同一个 VAE 装下深度</h3>
+      <p style="font-size:14.5px">把 depth 用受 <b>3D Hilbert 曲线</b>启发的<b>可逆颜色映射</b>编码成 RGB 图，交给与外观同一个 frozen VAE——无需专门的 depth encoder/decoder，也不改动预训练 VAE 的输入输出接口；非线性映射把更多色阶分给近处表面。</p>
+      <div class="formula">
+        <span class="lbl">外观与几何分别在各自的视角集合上求平均，几何权重从 0 线性爬坡</span>
+        L = L<sub>fm</sub>(V<sub>rgb</sub>) + <span class="hl">ω(τ)</span> · L<sub>fm</sub>(V<sub>geo</sub>) ,&nbsp;&nbsp; ω(τ) = ω<sub>max</sub> · min(1, τ/τ₀) ,&nbsp;&nbsp; ω<sub>max</sub> = 1（前 3,000 iter 爬坡）
+      </div>
+      <h4>两处"不伤害外观"的安全设计</h4>
+      <table>
+        <thead><tr><th>设计</th><th>作用</th></tr></thead>
+        <tbody>
+          <tr><td><b>Asymmetric attention</b></td><td>appearance / text query <b>不能</b> attend 到 geometry token，而 geometry token 可以 attend 全部模态 → 几何特征不会泄漏进外观流，但几何仍能用到完整场景上下文</td></tr>
+          <tr><td><b>零初始化 geometry-modality embedding</b></td><td>加在 patch embedding 之后，使模型在初始化时与原多视角生成器功能等价，训练中再逐步引入几何特征</td></tr>
+        </tbody>
+      </table>
+      <h4>长时程探索：chunked 自回归，在 latent 空间衔接</h4>
+      <p style="font-size:14.5px">生成一个 chunk 后，把最后一个生成视角作为下一 chunk 的参考视角（滑动上下文窗口）。关键点：<b>下一 chunk 直接条件于该视角去噪后的 target latent</b>，而不是重新 VAE 编码的像素图——避免每个 chunk 边界累积 encode–decode 伪影；配合跨整条序列的 physics propagation，长轨迹不漂移。</p>
+    </div>
+  </section>
+
+  <!-- 数据引擎 -->
+  <section id="data">
+    <div class="sec-head"><div class="sec-num">⑥</div><h2>数据引擎：Puffin-16M</h2></div>
+    <p class="sec-sub">Puffin-4M 的三个短板（规模不足、全部固定 512×512、单视角为主且没有长轨迹）被逐一补上。</p>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>子集</th><th>规模</th><th>体积</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><b>Puffin-Cam-15M</b></td><td><b>15,338,221</b> 组 image–caption–camera</td><td>≈2.4 TB<br><span class="muted">1,534 shard × 10,000 图</span></td><td>由 <b>900K 全景图</b>渲染（前作仅 200K）；覆盖室内外、合成与真实、多国自驾街景</td></tr>
+          <tr><td><b>Puffin-Traj-1M</b></td><td><b>1,136,696</b> 条轨迹（每条 90 帧）</td><td>≈9.2 TB<br><span class="muted">500 scene / shard</span></td><td>look-down / look-up、顺/逆时针旋转、<b>完整 360°</b> 环绕探索</td></tr>
+          <tr><td>Puffin-Cam-15M-Bench</td><td>600 组</td><td>≈100 MB</td><td>held-out，全景与训练集不重叠</td></tr>
+          <tr><td>Puffin-Traj-1M-Bench</td><td>100 条轨迹</td><td>≈1.1 GB</td><td>held-out</td></tr>
+          <tr><td>公开数据集标注</td><td><b>28 个数据集 / ≈44.5M 图像</b></td><td>—</td><td>绝对 roll / pitch / 垂直 FoV 标注（22 个单图集 + 6 个多视角集）</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">全景来源存在 360° 标定与采集稳定性差异（消费级与车载尤甚），因此用<b>基于线段分割与消失点估计的几何校正</b>把全景对齐到重力方向；为避免评测污染，源全景中<b>排除了 Stanford2D3D</b>。</p>
+      <figure>
+        <img src="assets/pw-dataset.webp" alt="Puffin-16M 概览">
+        <figcaption>Puffin-16M：左侧为多样分辨率与长宽比的 15M 视觉–语言–相机三元组，右侧为 1M 条含多样挑战性旋转运动的轨迹。</figcaption>
+      </figure>
+    </div>
+
+    <div class="card">
+      <h3>相机参数分布：把"旋转多样性"补回来</h3>
+      <table>
+        <thead><tr><th>参数</th><th>Puffin-Cam-15M</th><th>Puffin-Traj-1M</th></tr></thead>
+        <tbody>
+          <tr><td>Roll</td><td>U[−45°, +45°]</td><td>U[−45°, +45°]（非运动轴时保持不变）</td></tr>
+          <tr><td>Pitch</td><td>U[−45°, +45°]</td><td>U[−45°, +45°]（同上）</td></tr>
+          <tr><td>Yaw</td><td>—</td><td>base ∈ [−180°, +180°]，作运动轴时扫掠</td></tr>
+          <tr><td>垂直 FoV</td><td>U[20°, 105°]</td><td>U[60°, 100°]（轨迹内恒定）</td></tr>
+          <tr><td>径向畸变 k₁</td><td colspan="2">0（针孔模型）</td></tr>
+          <tr><td>运动结构</td><td>单视角渲染，长宽比 1:1 / 2:3 / 3:2 / 3:4 / 4:3 / 9:16 / 16:9</td><td>单轴运动 pitch/roll/yaw × (mono_pos / mono_neg / bi_pos_neg / bi_neg_pos)，<b>每段 90 帧、每帧 1°</b></td></tr>
+        </tbody>
+      </table>
+      <h4>Caption 与额外标注</h4>
+      <ul style="font-size:14.5px;padding-left:20px;line-height:1.9">
+        <li><b>Qwen3-VL-8B-Instruct / Qwen3-VL-32B-Instruct</b> 生成含场景语义与<b>结构化 chain-of-thought</b>（空间关系、相机参数、物理原理）的 caption；</li>
+        <li><b>Qwen3-VL-32B</b> 标注 <b>camera height 五档</b>：underwater / low-position / eye-level / high-position / aerial shot（高度数字仅为示意，无硬阈值），由全景继承到其全部透视图；</li>
+        <li>对公开真实视频的深度：合成集用官方稠密深度；ScanNet（传感器孔洞）与 DL3DV（MVS 深度不完整）改用 <b>DA3</b> 逐帧预测，并<b>与已有稀疏标注对齐</b>（保留原尺度、填补缺失）。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 实验结果 -->
+  <section id="exp">
+    <div class="sec-head"><div class="sec-num">⑦</div><h2>实验结果：全部数字</h2></div>
+    <p class="sec-sub">三个世界模型 checkpoint：Base（C-RADIOv3-H + Qwen2.5-7B + SD3.5-Medium-2.5B，26.7 GB）、Pro（C-RADIOv4-H + Qwen2.5-1.5B + SD3.5-Large-8.1B，37.5 GB）、Caption（C-RADIOv3-H + Qwen3.5-0.8B，2.82 GB，理解专用）。</p>
+
+    <div class="card">
+      <h3>① 相机到世界理解（Table 3）：12/12 最优 median error、33/36 最优 AUC</h3>
+      <table>
+        <thead><tr><th>数据集</th><th>方法</th><th>Roll 误差 ↓</th><th>Pitch 误差 ↓</th><th>vFoV 误差 ↓</th></tr></thead>
+        <tbody>
+          <tr><td>Stanford2D3D</td><td>GeoCalib（次优）</td><td>0.40°</td><td>0.93°</td><td>3.21°</td></tr>
+          <tr><td>Stanford2D3D</td><td><b>Puffin-World</b></td><td><b>0.29°</b>（AUC@1/5/10 = 93.1 / 97.4 / 98.5）</td><td><b>0.53°</b>（73.3 / 88.8 / 94.0）</td><td><b>1.62°</b>（34.5 / 61.1 / 76.4）</td></tr>
+          <tr><td>MegaDepth</td><td>Puffin（前作）</td><td>0.32°</td><td>1.08°</td><td>2.42°</td></tr>
+          <tr><td>MegaDepth</td><td><b>Puffin-World</b></td><td><b>0.28°</b></td><td><b>1.01°</b></td><td><b>2.41°</b></td></tr>
+          <tr><td>TartanAir</td><td><b>Puffin-World</b></td><td><b>0.31°</b></td><td><b>0.67°</b></td><td><b>2.34°</b>（GeoCalib 4.90°）</td></tr>
+          <tr><td>LaMAR</td><td><b>Puffin-World</b></td><td><b>0.26°</b></td><td><b>0.71°</b></td><td>2.73°（AnyCalib† 2.25°）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>② 相机可控生成（Table 4，Puffin-Cam-Bench = 600 组 text–camera 对）</h3>
+      <table>
+        <thead><tr><th>方法</th><th>Up vector（mean / median）</th><th>Latitude</th><th>Gravity</th><th>FID ↓</th></tr></thead>
+        <tbody>
+          <tr><td>GPT Image2</td><td>24.13 / 23.44</td><td>16.42 / 15.98</td><td>28.83 / 29.38</td><td>99.36</td></tr>
+          <tr><td>Nano Banana2</td><td>24.01 / 23.19</td><td>15.98 / 15.52</td><td>28.00 / 26.92</td><td>90.11</td></tr>
+          <tr><td>Qwen-Image2-Pro</td><td>24.12 / 23.51</td><td>16.45 / 15.53</td><td>28.57 / 28.69</td><td>98.51</td></tr>
+          <tr><td>FLUX.2-dev</td><td>24.28 / 23.62</td><td>15.75 / 15.24</td><td>28.31 / 28.36</td><td>97.06</td></tr>
+          <tr><td>Z-Image</td><td>24.64 / 24.04</td><td>16.96 / 16.09</td><td>29.41 / 28.82</td><td>98.33</td></tr>
+          <tr><td>PreciseCam</td><td>13.37 / 12.61</td><td>12.31 / 12.01</td><td>17.07 / 14.01</td><td>90.89</td></tr>
+          <tr><td>Puffin（前作）</td><td>3.86 / 3.48</td><td>4.77 / 4.43</td><td>4.92 / 2.87</td><td>80.29</td></tr>
+          <tr><td><b>Puffin-World</b></td><td><b>0.96 / 0.84</b></td><td><b>1.34 / 1.26</b></td><td><b>1.32 / 0.79</b></td><td><b>75.93</b></td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">通用生成模型画质很好，但在指定相机配置下常常破坏空间一致性；Puffin-World 把角度误差压到 1° 量级，同时 FID 最低。评测方式是用模型自身的理解分支对生成图重估相机参数并导出逐像素 perspective field，与 GT field 比对。</p>
+      <figure>
+        <img src="assets/pw-free-viewpoint.webp" alt="自由视角文生图对比">
+        <figcaption>自由视角 text-to-image 生成对比，最右侧为 Puffin-World；角度值越接近 0° 表示空间对齐越好。</figcaption>
+      </figure>
+    </div>
+
+    <div class="card">
+      <h3>③ 3D 世界生成（Table 5）</h3>
+      <h4>RealEstate10K（50 条 held-out clip，与训练无重叠）</h4>
+      <table>
+        <thead><tr><th>方法</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th></tr></thead>
+        <tbody>
+          <tr><td>MotionCtrl</td><td>13.38</td><td>0.482</td><td>0.507</td></tr>
+          <tr><td>CameraCtrl</td><td>16.93</td><td>0.589</td><td>0.352</td></tr>
+          <tr><td>ViewCrafter</td><td>16.04</td><td>0.569</td><td>0.331</td></tr>
+          <tr><td>SEVA</td><td>14.84</td><td>0.529</td><td>0.421</td></tr>
+          <tr><td>MVGenMaster†</td><td>17.11</td><td>0.591</td><td>0.348</td></tr>
+          <tr><td><b>Puffin-World</b></td><td><b>17.22</b></td><td><b>0.595</b></td><td><b>0.318</b></td></tr>
+        </tbody>
+      </table>
+      <h4>Puffin-Traj-Bench（100 条 clip，旋转与内参跨度更大）</h4>
+      <table>
+        <thead><tr><th>方法</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th><th>Roll 误差 ↓</th><th>Pitch 误差 ↓</th><th>FoV 误差 ↓</th></tr></thead>
+        <tbody>
+          <tr><td>MotionCtrl</td><td>12.53</td><td>0.438</td><td>0.604</td><td>3.20°</td><td>2.15°</td><td>10.04°</td></tr>
+          <tr><td>CameraCtrl</td><td>14.28</td><td>0.512</td><td>0.532</td><td>11.79°</td><td>10.81°</td><td>45.84°</td></tr>
+          <tr><td>ViewCrafter</td><td>14.52</td><td>0.525</td><td>0.510</td><td>1.92°</td><td>2.89°</td><td>6.43°</td></tr>
+          <tr><td>SEVA</td><td>17.94</td><td><b>0.614</b></td><td>0.307</td><td>1.35°</td><td>1.76°</td><td>12.59°</td></tr>
+          <tr><td>MVGenMaster</td><td>13.64</td><td>0.496</td><td>0.589</td><td>9.24°</td><td>9.43°</td><td>26.98°</td></tr>
+          <tr><td><b>Puffin-World</b></td><td><b>18.00</b></td><td>0.613</td><td><b>0.288</b></td><td><b>0.80°</b></td><td><b>1.10°</b></td><td><b>2.96°</b></td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:13.5px">† MVGenMaster 的训练数据包含所评测的 RealEstate10K；RealEstate10K 无绝对相机 GT，故不报相机指标。Roll / Pitch AUC@1/5/10° 上 Puffin-World 为 0.57 / 0.79 / 0.88 与 0.45 / 0.72 / 0.83。</p>
+      <figure>
+        <img src="assets/pw-figure6-3d-world-modeling.webp" alt="3D 世界建模定性结果">
+        <figcaption>3D 世界建模定性结果：image-to-3D、text-to-3D、灵活旋转控制、复合运动、原生世界状态与 3D 重建；红框为模型输入。</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 局限与开源 -->
+  <section id="take">
+    <div class="sec-head"><div class="sec-num">⑧</div><h2>闭环应用、局限与开源</h2></div>
+
+    <div class="card">
+      <h3>两类闭环应用（多任务协同）</h3>
+      <table>
+        <thead><tr><th>应用</th><th>机制</th></tr></thead>
+        <tbody>
+          <tr><td><b>Mimic world exploration</b></td><td>从同一出发视角、按同一条指定相机轨迹扩展出不同的 3D 世界——把相机理解与一致的多视角生成耦合起来</td></tr>
+          <tr><td><b>Self-calibrated world exploration</b></td><td>从重力失准的观测出发：推理当前物理状态 → 预测纠正性相机动作 → 想象纠正后的观测，形成<b>感知–动作–生成闭环</b>（论文类比 World-Action Models），全程无需外部标定器或生成器</td></tr>
+        </tbody>
+      </table>
+      <figure>
+        <img src="assets/pw-teaser-world-states.webp" alt="原生世界状态与 3D 重建">
+        <figcaption>appearance / geometry / physics 三种原生状态与对应 3D 重建一并输出；项目页交互式浏览器示例点云约 670K points。</figcaption>
+      </figure>
+    </div>
+
+    <div class="card">
+      <h3>已知局限</h3>
+      <p class="muted" style="font-size:13.5px">论文 Conclusion 没有 limitation 章节，以下为官方 HF 模型卡明确列出的限制：</p>
+      <ul style="font-size:14.5px;padding-left:20px;line-height:1.9">
+        <li>当前<b>聚焦静态场景</b>，physics 主要通过 <b>gravity 与 latitude</b> 建模；</li>
+        <li>动态环境、<b>更长的时序</b>、更丰富的物体交互与更广的物理状态是重要的后续方向；</li>
+        <li>生成内容可能继承训练数据与预训练组件的<b>偏见与失败模式</b>。</li>
+      </ul>
+      <p style="font-size:14.5px;margin-top:8px"><b>整理者补充</b>：与视频世界模型相比，Puffin-World 做的是多视角 / chunked 自回归的静态世界扩展，而非时序因果 rollout，论文未报告长序列时间一致性指标；相机控制评测依赖<b>自己的理解分支</b>对生成帧重估参数（自评闭环），缺少独立第三方标定器交叉验证；权重与数据均在 <b>NTU S-Lab License 1.0（非商业）</b>下发布。</p>
+    </div>
+
+    <div class="card">
+      <h3>开源清单与工程细节</h3>
+      <table>
+        <thead><tr><th>项</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>代码</td><td><code>github.com/KangLiao929/Puffin</code> 的 <code>Puffin-World/</code>（HEAD <code>c6d9ae5</code>）：371 文件 / 332 个 py / 73,217 行；含四阶段 pipeline config、数据 cache 构建、训练（torchrun 8 卡 + DeepSpeed ZeRO-2）与评测脚本（输出 GT/生成帧、GIF、Genie 风格键盘控制 overlay、perspective-field 可视化、Stage IV 的 <code>reconstruction.glb</code>）</td></tr>
+          <tr><td>环境</td><td>Python 3.10 / PyTorch 2.7.0 / CUDA 12.6 / flash-attn 2.8.3；<code>torchrun --nproc_per_node=8</code> + <code>deepspeed_zero2</code></td></tr>
+          <tr><td>权重</td><td>Base 26.7 GB / Pro 37.5 GB / Caption 2.82 GB（HF <code>KangLiao/Puffin-World</code>）</td></tr>
+          <tr><td>数据</td><td>HF <code>KangLiao/Puffin-16M</code>（≈11.6 TB；也可只下 benchmark 子集）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot">
+    <b>来源</b>
+    <div class="ref">· 论文：<a href="https://arxiv.org/abs/2609.04196">arXiv:2609.04196</a>（<i>Puffin-World: Scaling a Unified Multimodal Model with Native 3D World States</i>，2026.09）· <a href="https://arxiv.org/html/2609.04196v1">HTML 全文</a></div>
+    <div class="ref">· 项目页：<a href="https://kangliao929.github.io/projects/puffin-world/">kangliao929.github.io/projects/puffin-world</a> · <a href="https://kangliao929.github.io/projects/puffin-world/supplementary.html">补充结果</a> · 数据集页：<a href="https://kangliao929.github.io/projects/puffin-16m/">Puffin-16M</a></div>
+    <div class="ref">· 代码：<a href="https://github.com/KangLiao929/Puffin">github.com/KangLiao929/Puffin</a>（<code>Puffin-World/</code>，HEAD <code>c6d9ae5</code>）· 权重与博客：<a href="https://huggingface.co/KangLiao/Puffin-World">HF KangLiao/Puffin-World</a> · <a href="https://huggingface.co/blog/KangLiao/puffin-world">HF Blog</a></div>
+    <div class="ref" style="margin-top:10px">※ 本页依据论文 v1（HTML 全文）、官方项目页、HF 模型卡与仓库 <code>Puffin-World/</code> 通读整理，快照 2026-09-14。图片版权归原作者所有。</div>
+  </div>
+</footer>
+
+<script>
+  const bar = document.getElementById('progress');
+  addEventListener('scroll', () => {
+    const h = document.documentElement;
+    bar.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  }, {passive:true});
+
+  const links = document.querySelectorAll('nav a[data-spy]');
+  const map = {};
+  links.forEach(a => map[a.getAttribute('href').slice(1)] = a);
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(a => a.classList.remove('active'));
+        (map[e.target.id] || {classList:{add(){}}}).classList.add('active');
+      }
+    });
+  }, {rootMargin:'-30% 0px -60% 0px'});
+  document.querySelectorAll('main section[id]').forEach(s => obs.observe(s));
+</script>
+
+</body>
+</html>
