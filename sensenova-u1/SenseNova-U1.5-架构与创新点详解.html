@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SenseNova-U1.5 解读 · 原生统一多模态视觉智能（NEO-unify）</title>
+<style>
+  :root{
+    --ink:#0b1220; --ink-soft:#3f4c63; --muted:#64748b;
+    --bg:#f5f7fb; --card:#ffffff; --line:#e3e8f0;
+    --accent:#4f46e5;
+    --grad:linear-gradient(135deg,#4f46e5 0%,#0ea5e9 55%,#14b8a6 100%);
+    --nova:linear-gradient(135deg,#4338ca 0%,#7c3aed 45%,#06b6d4 100%);
+    --radius:16px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.78}
+  .progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--nova);z-index:100;transition:width .1s linear}
+
+  nav{position:sticky;top:0;z-index:90;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .nav-inner{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:2px;padding:10px 20px;flex-wrap:wrap}
+  .nav-brand{font-weight:800;margin-right:12px;background:var(--nova);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:15px}
+  nav a{text-decoration:none;color:var(--ink-soft);font-size:13px;font-weight:600;padding:6px 10px;border-radius:999px;transition:.2s}
+  nav a:hover{background:#eef2ff;color:var(--accent)}
+  nav a.active{background:#eef2ff;color:var(--accent)}
+
+  header{background:radial-gradient(1100px 480px at 10% -12%,rgba(67,56,202,.42),transparent 60%),radial-gradient(900px 430px at 90% 4%,rgba(6,182,212,.34),transparent 62%),#070d1a;color:#f1f5f9;padding:66px 20px 56px}
+  .hero{max-width:1080px;margin:0 auto}
+  .hero .kicker{letter-spacing:.24em;font-size:12px;font-weight:700;color:#67e8f9;text-transform:uppercase}
+  .hero h1{font-size:clamp(28px,4.6vw,44px);font-weight:900;margin:14px 0 8px;line-height:1.24}
+  .hero h1 .g{background:var(--nova);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.sub{color:#cbd5e1;font-size:16px;max-width:880px;margin-top:10px}
+  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .tag{font-size:13px;padding:6px 14px;border:1px solid rgba(148,163,184,.4);border-radius:999px;color:#e2e8f0;background:rgba(148,163,184,.08)}
+  .hero .tag b{color:#67e8f9;font-weight:700}
+  .hero .authors{margin-top:20px;font-size:13px;color:#94a3b8;line-height:1.9}
+  .hero .authors b{color:#cbd5e1}
+
+  main{max-width:1080px;margin:0 auto;padding:0 20px 90px}
+  section{padding-top:56px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-num{flex:none;width:42px;height:42px;border-radius:12px;background:var(--nova);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;box-shadow:0 8px 20px rgba(67,56,202,.32)}
+  h2{font-size:26px;font-weight:800}
+  .sec-sub{color:var(--muted);font-size:15px;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px 28px;margin-bottom:22px;box-shadow:0 1px 3px rgba(11,18,32,.04)}
+  h3{font-size:19px;font-weight:800;margin:0 0 12px}
+  h3.mt{margin-top:26px}
+  h4{font-size:15px;font-weight:800;margin:18px 0 8px;color:#4338ca}
+  p{margin-bottom:10px}
+  ul,ol{margin:6px 0 10px 22px}
+  li{margin-bottom:6px}
+  .muted{color:var(--muted)}
+  code,.code{font-family:var(--mono);font-size:13px;background:#f1f5f9;padding:2px 6px;border-radius:5px}
+  pre{background:#0b1220;color:#dbeafe;border-radius:12px;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.6px;line-height:1.7;margin:10px 0}
+  pre code{background:none;color:inherit;padding:0}
+  .formula{background:#f8fafc;border:1px dashed #cbd5e1;border-left:4px solid #6366f1;border-radius:10px;padding:12px 16px;font-family:var(--mono);font-size:13.2px;overflow-x:auto;margin:10px 0;color:#1e293b}
+
+  .callout{border-radius:var(--radius);padding:18px 22px;margin-bottom:20px;color:#fff;background:linear-gradient(135deg,#1e1b4b,#4338ca 55%,#0e7490);box-shadow:0 12px 30px rgba(30,27,75,.28)}
+  .callout .t{font-weight:800;font-size:13.5px;letter-spacing:.1em;opacity:.9;margin-bottom:3px}
+  .callout p{font-size:15.6px;line-height:1.75;margin-bottom:0}
+  .callout.warn{background:linear-gradient(135deg,#7c2d12,#b45309 60%,#a16207)}
+  .callout.key{background:linear-gradient(135deg,#312e81,#4338ca 55%,#7c3aed)}
+  .callout.green{background:linear-gradient(135deg,#064e3b,#047857 60%,#0e7490);box-shadow:0 12px 30px rgba(6,78,59,.28)}
+
+  .statbar{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:4px}
+  @media(max-width:860px){.statbar{grid-template-columns:repeat(2,1fr)}}
+  .statbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .statbox b{display:block;font-size:20px;font-weight:900;background:var(--nova);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.35}
+  .statbox span{font-size:12.5px;color:var(--muted)}
+
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .pillars.two{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:860px){.pillars,.pillars.two{grid-template-columns:1fr}}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;border-top:4px solid #4338ca}
+  .pcard:nth-child(2){border-top-color:#0ea5e9}
+  .pcard:nth-child(3){border-top-color:#14b8a6}
+  .pcard:nth-child(4){border-top-color:#a855f7}
+  .pcard:nth-child(5){border-top-color:#f59e0b}
+  .pcard:nth-child(6){border-top-color:#ef4444}
+  .pcard b{display:block;font-size:15.5px;margin-bottom:6px}
+  .pcard p{font-size:14px;color:var(--ink-soft);margin-bottom:0}
+  .pcard .n{font-family:var(--mono);font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+
+  table{width:100%;border-collapse:collapse;font-size:13.6px;margin:6px 0}
+  th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}
+  th{background:#f1f5f9;font-size:12.2px;letter-spacing:.04em;color:var(--ink-soft);text-transform:uppercase}
+  tr:last-child td{border-bottom:none}
+  td code{font-size:12.2px}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:8px 0 4px}
+  .tbl-wrap table{min-width:560px}
+  tr.hl td{background:#eef2ff;font-weight:700}
+  tr.hl td:first-child{box-shadow:inset 3px 0 0 #4338ca}
+  .tcap{font-size:12.6px;color:var(--muted);margin:2px 0 14px}
+  .up{color:#047857;font-weight:700}
+  .dn{color:#b91c1c;font-weight:700}
+
+  figure{margin:16px 0 8px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px}
+  figure img{width:100%;display:block;border-radius:8px}
+  figcaption{font-size:12.8px;color:var(--muted);margin-top:10px;line-height:1.65}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+
+  .steps{counter-reset:s;margin:0;list-style:none}
+  .steps li{position:relative;padding:12px 0 12px 46px;border-bottom:1px dashed var(--line)}
+  .steps li:last-child{border-bottom:none}
+  .steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:11px;width:30px;height:30px;border-radius:9px;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+  .steps b{display:block;font-size:15px}
+
+  .kvs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 22px;font-size:14px}
+  @media(max-width:860px){.kvs{grid-template-columns:1fr}}
+  .kvs div{border-bottom:1px dashed var(--line);padding:6px 0}
+  .kvs span{color:var(--muted);display:inline-block;min-width:118px}
+
+  footer{background:#070d1a;color:#94a3b8;padding:44px 20px 54px;font-size:13.4px}
+  .foot-inner{max-width:1080px;margin:0 auto}
+  footer h4{color:#e2e8f0;font-size:15px;margin:0 0 10px}
+  footer a{color:#67e8f9;text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .ref{padding:5px 0;border-bottom:1px solid rgba(148,163,184,.14)}
+  .note{margin-top:14px;color:#64748b;font-size:12.6px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<nav>
+  <div class="nav-inner">
+    <span class="nav-brand">SenseNova-U1.5</span>
+    <a href="#overview" data-spy>概览</a>
+    <a href="#why" data-spy>动机</a>
+    <a href="#arch" data-spy>架构</a>
+    <a href="#objective" data-spy>目标函数</a>
+    <a href="#train" data-spy>训练配方</a>
+    <a href="#post" data-spy>后训练</a>
+    <a href="#reward" data-spy>奖励</a>
+    <a href="#data" data-spy>数据</a>
+    <a href="#eval" data-spy>评测</a>
+    <a href="#insight" data-spy>创新点</a>
+    <a href="#limit" data-spy>局限</a>
+    <a href="#deploy" data-spy>部署</a>
+    <a href="#ref" data-spy>资料</a>
+  </div>
+</nav>
+
+<header>
+  <div class="hero">
+    <div class="kicker">Native Unified Multimodal · NEO-unify</div>
+    <h1>SenseNova-U1.5：<span class="g">原生统一视觉智能</span>的技术全解</h1>
+    <p class="sub">
+      商汤 SenseNova 的 8B-MoT 统一多模态模型：<b>无视觉编码器（no VE）、无 VAE</b>，在同一个 Transformer 里同时做理解、推理、生成、编辑与图文交错生成。
+      U1.5 相对 U1 做了两处关键改造——把「逐 patch 独立重建」升级为「空间联合重建」，把「联合奖励优化」换成「先专精、再统一」（specialize-then-unify）。
+    </p>
+    <div class="meta">
+      <span class="tag">权重 <b>SenseNova-U1.5-8B-MoT</b></span>
+      <span class="tag">架构 <b>NEO-unify</b></span>
+      <span class="tag">规模 <b>8.2B 理解 / 8.2B 生成</b></span>
+      <span class="tag">分辨率 <b>原生 4K</b></span>
+      <span class="tag">许可 <b>Apache-2.0</b></span>
+      <span class="tag">论文 <b>arXiv:2609.11929</b></span>
+    </div>
+    <div class="authors">
+      <b>项目</b>：SenseNova（商汤科技）× NTU　·　<b>技术报告</b>：<i>SenseNova-U1.5: Towards Native Unified Visual Intelligence</i>（2026-09-11 发布，35 页）<br>
+      <b>赞助/顾问</b>：Dahua Lin　·　<b>资深项目负责人</b>：Lei Yang, Lewei Lu, Quan Wang, Ruihao Gong, Wenxiu Sun, Ziwei Liu　·　<b>项目负责人</b>：Haiwen Diao, Jiahao Wang<br>
+      <b>前作</b>：NEO-unify（2026-03-05 博客）→ SenseNova-U1（arXiv:2605.12500）→ <b>SenseNova-U1.5</b>（arXiv:2609.11929）
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ 1 概览 ============ -->
+<section id="overview">
+  <div class="sec-head"><div class="sec-num">1</div><h2>概览：它到底是什么</h2></div>
+  <p class="sec-sub">一句话：一个 8B 级、端到端、以像素与词元为原生输入的统一多模态基座，把「看懂」和「画出来」放进同一套表征里。</p>
+
+  <div class="statbar">
+    <div class="statbox"><b>8.2B + 8.2B</b><span>理解分支 / 生成分支参数量（合计约 16.4B，HF 上按 BF16 合计标为 18B）</span></div>
+    <div class="statbox"><b>32×32 → 1</b><span>每 32×32 像素压成 1 个视觉 token（1024× 压缩比）</span></div>
+    <div class="statbox"><b>4096²</b><span>原生训练/生成分辨率上限（U1 为 2048² 标定）</span></div>
+    <div class="statbox"><b>5 阶段</b><span>生成预训练 → 统一中训 → 统一 SFT → 多专家 RL → 多专家在策略蒸馏</span></div>
+  </div>
+
+  <div class="callout key">
+    <div class="t">核心论断</div>
+    <p>统一多模态的价值不在于「少了一个 VAE」这种架构简化，而在于<b>能力交互</b>：推理能改善视觉内容的创造与改写，生成本身也能成为解题的中间表征。U1.5 的数据显示，紧凑的共享视觉表征同时支撑了强理解、高保真生成、编辑与推理密集型任务。</p>
+  </div>
+
+  <div class="card">
+    <h3>1.1 模型身份卡</h3>
+    <div class="kvs">
+      <div><span>模型名</span><code>sensenova/SenseNova-U1.5-8B-MoT</code></div>
+      <div><span>姊妹权重</span><code>SenseNova-U1.5-8B-MoT-SFT</code>（SFT 阶段）</div>
+      <div><span>架构</span>NEO-unify：近无损视觉接口 + Native Mixture-of-Transformers</div>
+      <div><span>骨干初始化</span>理解分支来自 Qwen3 LLM 权重，生成分支随机初始化</div>
+      <div><span>层数 / 注意力</span>42 层，32 个 Q 头 / 8 个 KV 头，head size 64，隐藏维 4096</div>
+      <div><span>视觉 token</span>patch 32×32，2D 正弦位置编码，<code>&lt;img&gt;</code>/<code>&lt;/img&gt;</code> 界定视觉块</div>
+      <div><span>序列长度</span>推理/训练上限 32,768 token</div>
+      <div><span>模态任务</span>图像理解、文本生成图像、图像编辑、图文交错生成、生成辅助推理</div>
+      <div><span>发布节奏</span>Preview 2026-07-31 → 正式版 2026-08-20 → 技术报告 2026-09-11</div>
+      <div><span>开源范围</span>推理代码、全参微调训练代码、SFT/RL/MOPD 流水线（报告承诺开源）</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>1.2 版本脉络：从 NEO 到 U1.5</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>时间</th><th>节点</th><th>关键内容</th></tr></thead>
+      <tbody>
+        <tr><td>2026-03-05</td><td>NEO-unify 博客</td><td>提出原生统一范式三支柱：近无损视觉接口、Native MoT、统一学习目标（文本自回归 + 像素流匹配）；2B 原型在 MS COCO 上取得 31.56 PSNR / 0.85 SSIM（Flux VAE 为 32.65 / 0.91）</td></tr>
+        <tr><td>2026-04-27</td><td>SenseNova-U1 开源</td><td>8B-MoT / A3B-MoT 权重与推理代码，首次把「无 VE、无 VAE」做到可用规模</td></tr>
+        <tr><td>2026-05-10</td><td>U1 技术报告</td><td>arXiv:2605.12500；补齐 A3B（38B-A3B MoE）权重</td></tr>
+        <tr><td>2026-05-21</td><td>训练代码</td><td>全参微调框架 <code>sensenovalm / sensenovavl</code> 开源</td></tr>
+        <tr><td>2026-07-31</td><td>U1.5 Preview</td><td>聚焦原生 4K、局部纹理与材质、复杂版面、编辑保真</td></tr>
+        <tr class="hl"><td>2026-08-20</td><td>U1.5 正式版</td><td>6 项用户可见提升；同步放出 <code>LoRA-8step</code> 加速权重与 SFT 权重</td></tr>
+        <tr><td>2026-09-01</td><td>社区 GGUF</td><td>Q8_0 量化（21.2 GB），面向低显存单卡</td></tr>
+        <tr><td>2026-09-11</td><td>U1.5 技术报告</td><td>35 页，披露完整架构、五阶段配方、奖励建模与全部评测</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>1.3 官方主打的六项提升</h3>
+    <div class="pillars">
+      <div class="pcard"><span class="n">01</span><b>生成质量</b><p>构图与色彩和谐度改善，材质更真实、光照更自然，局部细节更锐利。</p></div>
+      <div class="pcard"><span class="n">02</span><b>文字与信息图</b><p>中英文可读性提升，海报/信息图/品牌物料的信息层级更清晰。</p></div>
+      <div class="pcard"><span class="n">03</span><b>原生 4K</b><p>全局结构更连贯、色彩更稳定，高分辨率生成效率同步提高。</p></div>
+      <div class="pcard"><span class="n">04</span><b>图像编辑</b><p>局部/文字/多参考/插入/替换编辑下，主体身份与未编辑区域保持更好。</p></div>
+      <div class="pcard"><span class="n">05</span><b>复杂指令遵循</b><p>物体数量、空间关系、版面、风格与多约束在一次请求内执行更一致。</p></div>
+      <div class="pcard"><span class="n">06</span><b>精细视觉控制</b><p>通过包围框、视觉标记、单/多图参考实现区域级与物体级控制。</p></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <figure>
+      <img src="assets/fig1-showcases-infographic-human.jpg" alt="SenseNova-U1.5 信息图与人物生成展示">
+      <figcaption><b>官方 showcase A｜信息图与人物生成</b>（技术报告 Figure 1）。</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/fig2-showcases-editing-multiref.jpg" alt="SenseNova-U1.5 图像编辑与多参考生成展示">
+      <figcaption><b>官方 showcase B｜图像编辑与多参考生成</b>（技术报告 Figure 2）。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ 2 动机 ============ -->
+<section id="why">
+  <div class="sec-head"><div class="sec-num">2</div><h2>动机：为什么要「原生统一」</h2></div>
+  <p class="sec-sub">主流多模态系统的根本割裂：用预训练视觉编码器（VE）去「看」，用变分自编码器（VAE）去「画」。</p>
+
+  <div class="card">
+    <h3>2.1 双轨表征的代价</h3>
+    <p>VE 的表征为语义抽象优化，VAE 的隐空间为像素保真优化，两者处在不同的表征空间。结果是与生成相关的信息必须在两套空间之间反复搬运，理解与生成难以在同一框架里协同；同时 VAE 的压缩瓶颈会限制极精细的细节还原与高分辨率稳定性。</p>
+    <p>原生统一（native unified）走另一条路：<b>直接从像素和词元上学习</b>，让表征空间由模型自身塑造。NEO-unify 的三根支柱是：</p>
+    <div class="pillars">
+      <div class="pcard"><span class="n">Pillar 1</span><b>近无损视觉接口</b><p>输入输出都不依赖外部编码器/解码器，直接在像素附近工作。</p></div>
+      <div class="pcard"><span class="n">Pillar 2</span><b>Native Mixture-of-Transformers</b><p>理解与生成共享注意力、但保留各自参数通路，冲突最小。</p></div>
+      <div class="pcard"><span class="n">Pillar 3</span><b>统一学习目标</b><p>文本用自回归交叉熵，视觉用像素空间流匹配，同一优化器下共同训练。</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>2.2 U1 的两个遗留问题，与 U1.5 的两大改造</h3>
+    <div class="callout warn">
+      <div class="t">问题一：独立 patch 预测</div>
+      <p>U1 的视觉接口极其轻量，但每个视觉 token 被<b>独立</b>解码成一块 RGB patch。相邻 patch 在图像成形的最后一步无法交换信息，于是高分辨率下接缝（seams）、纹理不连续、网格伪影与几何不一致被放大。</p>
+    </div>
+    <p><b>→ U1.5 改造 A：</b>从「独立 patch 预测」改为「<b>空间联合重建</b>」。把 token 投到二维特征场，用空间卷积 + Pixel Shuffle 渐进上采样，让相邻区域在像素定稿前先交换信息。</p>
+    <div class="callout warn">
+      <div class="t">问题二：联合奖励优化</div>
+      <p>视觉创作横跨美学合成、双语文字渲染、信息图设计、图像编辑等差异极大的能力，各自的奖励信号、rollout 动态与优化难点都不同。在单一策略里联合优化会让目标互相纠缠、稀释单项收益。</p>
+    </div>
+    <p><b>→ U1.5 改造 B：</b>「<b>先专精、再统一</b>」（specialize-then-unify）。先用各自的数据/奖励/采样/正则训练四个 RL 专家，再用<b>多专家在策略蒸馏（MOPD）</b>沿学生自己的生成轨迹把能力合回单一策略。</p>
+  </div>
+
+  <div class="callout blue callout" style="background:linear-gradient(135deg,#312e81,#4338ca 60%,#0e7490)">
+    <div class="t">为什么这次值得看</div>
+    <p>报告最有意思的观察是：尽管生成数据中结构化格式的曝光有限，U1.5 仍能泛化到长、组合性强、高度结构化的视觉指令。这暗示<b>多模态理解与推理阶段获得的结构知识与规划能力，可以迁移到视觉创作</b>——统一架构不只是省钱，而是让「看懂」反过来帮「画好」。</p>
+  </div>
+</section>
+
+<!-- ============ 3 架构 ============ -->
+<section id="arch">
+  <div class="sec-head"><div class="sec-num">3</div><h2>模型架构</h2></div>
+  <p class="sec-sub">U1.5 保留 NEO-unify 的整体骨架，重点重做了视觉接口的「编码」与「解码」两端，并显式引入分辨率感知的条件信号。</p>
+
+  <figure>
+    <img src="assets/fig3-architecture-u1.5.jpg" alt="SenseNova-U1.5 架构总览（技术报告 Figure 3 + Table 1）">
+    <figcaption><b>图 1｜架构总览（技术报告 Figure 3 与 Table 1）。</b>相比 U1，U1.5 在编码与解码两端细化近无损视觉接口：分辨率感知的噪声条件扩展到 4096×4096 范围；原先逐 patch 的 MLP 头被轻量空间解码器（Pixel Shuffle + 3×3 卷积）取代。在保持 32×32 紧凑 token 化的同时，提升空间连续性、高分辨率保真度与下游鲁棒性。</figcaption>
+  </figure>
+
+  <div class="card">
+    <h3>3.1 近无损视觉接口（编码端）</h3>
+    <ul>
+      <li>直接把原始图像或带噪视觉输入转成紧凑 token 序列，<b>不依赖外部视觉编码器，也不依赖 VAE</b>。</li>
+      <li>两级带 GELU 的卷积投影分别下采样 <b>×16</b> 与 <b>×2</b>，合计每 <b>32×32 像素区域 → 1 个视觉 token</b>。</li>
+      <li><b>二维正弦位置编码</b>保留空间坐标；特殊 token <code>&lt;img&gt;</code> / <code>&lt;/img&gt;</code> 界定单个视觉块。</li>
+      <li>文本用原始语言 tokenizer 处理，视觉与文本表征投影到<b>共享隐藏空间</b>后由统一骨干联合处理。</li>
+    </ul>
+    <p class="muted">32×32 的压缩比非常激进（同等分辨率下 token 数极少），这是它推理效率高、又能原生上到 4K 的直接原因；代价是必须在解码端补回局部空间交互——这正是改造 A 要解决的问题。</p>
+  </div>
+
+  <div class="card">
+    <h3>3.2 分辨率感知的噪声条件</h3>
+    <p>生成时有效噪声幅度随图像分辨率变化，因此分辨率本身就是去噪过程的重要条件信号。U1.5 显式引入分辨率相关的噪声尺度嵌入：</p>
+    <div class="formula">σ̄<sub>R</sub> = σ<sub>R</sub>(H, W) / σ<sub>max</sub>　，其中 σ<sub>max</sub> 对应 4096×4096 参考分辨率
+s<sub>t</sub> = τ<sub>t</sub> + NSEmb(σ̄<sub>R</sub>)</div>
+    <ul>
+      <li>U1 的归一化范围只标定到 2048×2048，U1.5 把参考分辨率<b>扩展到 4096×4096</b>。</li>
+      <li>σ̄<sub>R</sub> 经专用正弦 MLP <code>NSEmb(·)</code> 编码后与扩散时间步表征 τ<sub>t</sub> 相加，使去噪器同时感知扩散时间与分辨率相关的噪声统计。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>3.3 空间耦合解码器（改造 A 的核心）</h3>
+    <p>给定骨干隐藏态 <code>H ∈ R<sup>B×hw×d</sup></code>，先恢复二维拓扑 <code>H<sub>2D</sub> ∈ R<sup>B×d×h×w</sup></code>，再通过上采样因子为 <b>2、2、8</b> 的 Pixel Shuffle 阶段渐进重建全分辨率 RGB 图。</p>
+    <ul>
+      <li>相邻上采样阶段之间插入 <b>3×3 卷积</b>，让邻近 token 区域交换信息，patch 边界附近的像素被「联合」而非「独立」决定。</li>
+      <li>与骨干在流匹配目标下<b>端到端联合训练</b>，只带来有限额外算力。</li>
+      <li>效果：显著降低边界伪影，改进跨 patch 一致性与局部连续性，提升高分辨率生成与下游适配的稳定性。</li>
+    </ul>
+    <div class="callout green">
+      <div class="t">工程含义</div>
+      <p>这是一个「用小算子补几何」的典型设计：主干仍然在极紧凑的 token 空间里做全局建模，把局部空间交互交还给一个轻量卷积解码器。这比提高 token 密度或换回 VAE 更划算。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>3.4 Native Mixture-of-Transformers（MoT）</h3>
+    <p>U1.5 保留 MoT 设计：把理解与生成放进<b>同一个 Transformer 骨干</b>，而不是拆成两个独立网络。干净图文上下文与带噪视觉状态在同一序列里交错排列，语义表征、视觉证据与生成动态通过共享自注意力直接交互。</p>
+    <h4>注意力掩码：非对称信息流</h4>
+    <ul>
+      <li><b>文本 token</b>：只注意前文（因果语言建模）。</li>
+      <li><b>干净图像块内 token</b>：块内双向注意，捕捉空间依赖。</li>
+      <li><b>噪声条件生成 token</b>：在其图像块内双向交互，并可注意<b>所有在前的干净多模态上下文</b>。</li>
+      <li><b>反向路径被显式屏蔽</b>：干净表征不能看到随机生成状态，保证理解/推理表征的完整性。</li>
+    </ul>
+    <h4>参数特化：共享注意力 ≠ 全共享参数</h4>
+    <p>理解与生成各自保留<b>独立的注意力投影、归一化层与前馈模块</b>，在每一层按 token 类型动态路由。共享注意力只作为跨流通信接口，流特有参数保留感知与合成各自所需的计算。这样既能从共同表征空间获益，又不把两套优化目标强行塞进同一条计算通路。</p>
+  </div>
+
+  <div class="card">
+    <h3>3.5 配置与规模</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>配置</th><th>Patch Size</th><th>Pre-Buffer</th><th># Layers</th><th># Heads (Q/KV)</th><th>Head Size (T/H/W)</th><th>Hidden Size</th><th># Params (Und/Gen)</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>SenseNova-U1.5</td><td>32 × 32</td><td>✓</td><td>42</td><td>32 / 8</td><td>64 / 32 / 32</td><td>4,096</td><td>8.2B / 8.2B</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tcap">Table 1（技术报告）。高空间压缩比、Pre-Buffer 设计、统一时空编码的 native RoPE，以及用于联合多模态理解与生成的 Mixture-of-Transformers 架构。</p>
+  </div>
+</section>
+
+<!-- ============ 4 目标函数 ============ -->
+<section id="objective">
+  <div class="sec-head"><div class="sec-num">4</div><h2>统一训练目标</h2></div>
+  <p class="sec-sub">三个互补信号耦合在一个原生模型里：自回归监督建立语义理解，流匹配直接学像素空间变换，感知监督约束生成端点。</p>
+
+  <div class="card">
+    <h3>4.1 多模态理解：自回归似然</h3>
+    <div class="formula">L<sub>AR</sub> = −(1/N) Σ<sub>n=1..N</sub> log p<sub>θ</sub>(x<sub>n</sub> | x<sub>&lt;n</sub>, c)</div>
+    <p>x<sub>n</sub> 为第 n 个目标 token，c 为在前的多模态上下文。</p>
+
+    <h3 class="mt">4.2 视觉生成：像素空间流匹配（x-prediction）</h3>
+    <p>沿用 x-prediction 思路，<b>直接在 RGB 空间</b>学习流匹配。为适配不同分辨率，用分辨率自适应噪声构造训练轨迹：</p>
+    <div class="formula">z<sub>t</sub> = t·x + (1 − t)·σ<sub>R</sub>(H, W)·ε　，ε ~ N(0, I)，t ∈ [0, 1]
+
+v<sub>θ</sub> = (x̂<sub>θ</sub> − z<sub>t</sub>) / (1 − t)　，　v<sup>★</sup> = (x − z<sub>t</sub>) / (1 − t)
+
+L<sub>Flow</sub> = E[ ‖v<sub>θ</sub> − v<sup>★</sup>‖<sub>2</sub><sup>2</sup> ]</div>
+
+    <h3 class="mt">4.3 感知监督：LPIPS</h3>
+    <div class="formula">L<sub>Perc</sub> = LPIPS(x̂<sub>θ</sub>, x)
+
+L = λ<sub>AR</sub>·L<sub>AR</sub> + λ<sub>Flow</sub>·L<sub>Flow</sub> + λ<sub>Perc</sub>·L<sub>Perc</sub></div>
+    <p>LPIPS 提供与 RGB 空间流目标互补的特征空间监督，改善结构一致性与局部视觉连贯。三者结合把高层语义与低层视觉成形耦合起来，使理解与生成在同一表征内被学习。</p>
+    <div class="callout">
+      <div class="t">一个训练细节</div>
+      <p>LPIPS 项是在 Stage 1 的<b>第三阶段</b>才引入的（权重 0.1），并在此后的统一中训与 SFT 中一直保留。前两个阶段是纯 flow matching（λ<sub>AR</sub>:λ<sub>Flow</sub>:λ<sub>Perc</sub> = 0:1:0）。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 训练配方 ============ -->
+<section id="train">
+  <div class="sec-head"><div class="sec-num">5</div><h2>训练配方：五阶段</h2></div>
+  <p class="sec-sub">Stage 1 生成预训练 → Stage 2 统一中训 → Stage 3 统一 SFT → Stage 4 能力专精（多专家 RL）→ Stage 5 多专家在策略蒸馏。</p>
+
+  <div class="card">
+    <h3>5.1 逐阶段超参与数据配比</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>训练阶段</th><th>Stage 1 · Phase I</th><th>Stage 1 · Phase II</th><th>Stage 1 · Phase III</th><th>Stage 2 统一中训</th><th>Stage 3 统一 SFT</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>训练步数</td><td>180K</td><td>100K</td><td>185K</td><td>80K</td><td>10.5K</td></tr>
+        <tr><td>峰值学习率</td><td>2×10⁻⁴</td><td>1×10⁻⁴</td><td>1×10⁻⁴</td><td>2×10⁻⁵</td><td>2×10⁻⁵</td></tr>
+        <tr><td>最低学习率</td><td>2×10⁻⁴</td><td>1×10⁻⁴</td><td>2×10⁻⁵</td><td>2×10⁻⁵</td><td>0</td></tr>
+        <tr><td>LR 调度</td><td>Constant</td><td>Constant</td><td>Cosine decay</td><td>Constant</td><td>Cosine decay</td></tr>
+        <tr><td>序列长度</td><td>8,196</td><td>20,480</td><td>20,480</td><td>32,768</td><td>32,768</td></tr>
+        <tr><td>理解分支</td><td>冻结</td><td>冻结</td><td>可训练</td><td>可训练</td><td>可训练</td></tr>
+        <tr><td>生成分支</td><td>可训练</td><td>可训练</td><td>可训练</td><td>可训练</td><td>可训练</td></tr>
+        <tr><td>λ<sub>AR</sub> : λ<sub>Flow</sub> : λ<sub>Perc</sub></td><td>0 : 1 : 0</td><td>0 : 1 : 0</td><td>0.1 : 1 : 0.1</td><td>0.1 : 1 : 0.1</td><td>0.1 : 1 : 0.1</td></tr>
+        <tr><td>生成分辨率</td><td>256²–1024²</td><td>512²–4096²</td><td>512²–4096²</td><td>512²–4096²</td><td>512²–4096²</td></tr>
+        <tr><td>理解数据</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.30</td><td>0.30</td></tr>
+        <tr><td>文生图数据</td><td>1.00</td><td>1.00</td><td>0.60</td><td>0.40</td><td>0.40</td></tr>
+        <tr><td>图像编辑数据</td><td>0.00</td><td>0.00</td><td>0.30</td><td>0.20</td><td>0.30</td></tr>
+        <tr><td>交错数据</td><td>0.00</td><td>0.00</td><td>0.10</td><td>0.10</td><td>0.10</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tcap">Table 2（技术报告）。优化器全程为 AdamW（β₁ = 0.9，β₂ = 0.95，ε = 10⁻⁸）。<b>注：</b>Stage 3 的配比在报告表格中列为 0.30 / 0.40 / 0.30 / 0.10（合计 1.10），正文称其「与 Stage 2 任务构成相似」，疑为 0.20 之笔误，原样列出以便核对。</p>
+  </div>
+
+  <div class="card">
+    <h3>5.2 Stage 1：生成预训练（三段式）</h3>
+    <ol class="steps">
+      <li><b>Phase I — 低分辨率打底</b>基于已预训练的理解分支，随机初始化生成分支，在理解表征条件下做像素空间流匹配。文生图数据 256²–1024²，180K 步，常数 LR 2×10⁻⁴，序列长度 8,196。</li>
+      <li><b>Phase II — 原生 4K 能力</b>把分辨率区间扩到 512²–4096²，专门强化原生 4K 生成。100K 步，常数 LR 1×10⁻⁴，序列长度提升到 20,480。</li>
+      <li><b>Phase III — 引入编辑与交错</b>额外 185K 步，数据混合为 60% 文生图 / 30% 图像编辑 / 10% 图文交错；LR 从 1×10⁻⁴ 余弦衰减到 2×10⁻⁵，序列长度维持 20,480。从本阶段起加入权重 0.1 的 LPIPS 感知损失，并在此后所有阶段保留。</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>5.3 Stage 2 / Stage 3：统一中训与统一 SFT</h3>
+    <ul>
+      <li><b>Stage 2（80K 步）</b>：双分支联合优化，共享注意力做跨分支信息交换，同时保留任务特有表征。语料混合为 <b>30% 纯文本+多模态理解 / 40% 文生图 / 20% 图像编辑 / 10% 图文交错</b>。最大序列长度 32,768，常数 LR 2×10⁻⁵。理解损失与生成损失权重为 <b>0.1 : 1.0</b>——刻意压低理解权重以保护预训练理解能力，同时把优化重心给到更难生成的生成目标，从而获得稳定的联合训练。</li>
+      <li><b>Stage 3（10.5K 步）</b>：在精选高质量指令跟随数据上进一步微调，任务构成与 Stage 2 类似，LR 从 2×10⁻⁵ 余弦衰减到 0，损失系数不变。目标是强化指令遵循并把前序阶段的能力固化进统一模型。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 6 后训练 ============ -->
+<section id="post">
+  <div class="sec-head"><div class="sec-num">6</div><h2>后训练：四专家 RL + 多专家在策略蒸馏</h2></div>
+  <p class="sec-sub">这是 U1.5 相对 U1 的第二处结构性改造（specialize-then-unify），也是本报告篇幅最重、工程细节最多的部分。</p>
+
+  <figure>
+    <img src="assets/fig4-posttraining.jpg" alt="SenseNova-U1.5 后训练流程（技术报告 Figure 4）">
+    <figcaption><b>图 2｜后训练流程（技术报告 Figure 4）。</b>统一 SFT 模型出发，并行训练四个能力专家（美学、OCR、信息图、编辑），各自持有独立的奖励与优化配置；随后通过多专家在策略蒸馏（on-policy velocity distillation）合并回单一统一模型，蒸馏调度为「从高噪声到低噪声」。</figcaption>
+  </figure>
+
+  <div class="card">
+    <h3>6.1 四个专家的分工与配置</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>专家</th><th>奖励信号</th><th>采样 / 正则</th><th>关键超参</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>美学专家</b></td>
+          <td>HPSv3++（感知质量 + 图文对齐）× 双语 OCR 奖励（PaddleOCR），按数据分区<b>交替路由</b></td>
+          <td>CPS，η = 0.7；每步从轨迹前 10 步中均匀取连续 5 步窗口</td>
+          <td>每提示 16 候选；30 步轨迹；guidance 4.0；timestep shift 3；LR 2×10⁻⁵；KL 0.01；动态分辨率与宽高比</td>
+        </tr>
+        <tr>
+          <td><b>OCR 专家</b></td>
+          <td>归一化多重集 IoU（英文按词、中文按字）比对 PaddleOCR 识别结果与目标文本</td>
+          <td>Precise 采样，η = 1.5；GRPO-Guard 稳定稀疏高奖励下的优化</td>
+          <td>16 候选；30 步；guidance 4.0；shift 3；前 10 步取连续 5 步；LR 2×10⁻⁵；KL 0.02</td>
+        </tr>
+        <tr>
+          <td><b>编辑专家</b></td>
+          <td>VLM 五维奖励：指令完成度、编辑执行质量、整体视觉质量、文字编辑质量（适用时）、未编辑区域保持</td>
+          <td><b>刻意不用 SDE 采样</b>（随机扰动会残留噪声与伪影）；用 EMA</td>
+          <td>LR 4×10⁻⁵；KL 0.01；rollout 24；noise scale 0.7；渐进式滑窗（粗到细）</td>
+        </tr>
+        <tr>
+          <td><b>信息图专家</b></td>
+          <td>复用 OCR + 美学奖励，做<b>阶段/任务条件路由</b>，不做加权求和</td>
+          <td>GRPO（第 1、3 阶段）使用 CPS；CFG 只在 rollout 收集奖励时使用，策略目标只用条件预测</td>
+          <td>完整信息图中训 → 三阶段 RL：① OCR 奖励热身 ② DPO（LR 5×10⁻⁶，β = 10，从第 1–20 步采一个时间步）③ OCR/美学交替路由。GRPO 阶段 16 候选 / 30 步 / LR 2×10⁻⁵ / KL 0.01</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tcap">依据技术报告 Stage 4 与 §3.3 整理。美学、OCR、信息图三个专家在 RL 中均<b>冻结最后一代生成 Transformer 块、流匹配输出头及其输出归一化层</b>，以抑制奖励诱导的漂移。</p>
+    <div class="callout warn">
+      <div class="t">为什么必须冻结最后几层</div>
+      <p>报告明确指出：仅优化视觉偏好会以文字可读性为代价提升整体观感。冻结输出端 + 奖励路由（不与不同量纲的奖励混加）是两个对症的工程手段：前者防止策略为了刷分而破坏像素出口，后者防止 OCR 分数与美学分数互相污染。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>6.2 Stage 5：多专家在策略蒸馏（MOPD）</h3>
+    <p>目标是把四个专精专家（美学 / 文字渲染 / 信息图 / 编辑）合并进一个统一模型。每个训练样本按能力<b>硬路由</b>到对应的冻结专家：</p>
+    <div class="formula">给定条件 c 与能力 m，学生先自行生成轨迹 {x̂<sub>θ,t</sub>}，然后在<b>同一学生自生成状态、同一时间步、同一条件</b>下同时评估学生与路由到的专家：
+
+L<sub>OPD</sub> = E[ ‖ v<sub>θ</sub>(sg(x̂<sub>θ,t</sub>), t, c) − v<sub>m</sub>(sg(x̂<sub>θ,t</sub>), t, c) ‖<sub>2</sub><sup>2</sup> ]</div>
+    <ul>
+      <li><code>sg</code> 为 stop-gradient，防止梯度穿过整条采样轨迹。</li>
+      <li>每个 epoch 只用一个能力分区及其配对的冻结专家，按固定顺序轮转。</li>
+      <li>文生图与图像编辑都采用<b>固定 30 步确定性 ODE</b> 去噪，每条轨迹只查询一个时间步。</li>
+    </ul>
+
+    <h4>噪声调度：从高噪声到低噪声</h4>
+    <p>为了同时学到决定全局结构的高噪声状态和决定局部细节的低噪声状态，查询分布随训练<b>平滑后移</b>。第 n 个 epoch 的查询位置为：</p>
+    <div class="formula">t<sub>e</sub> ~ Beta(2 + 3n/N,　5 − 3n/N)　，N 为总 epoch 数
+n 小时 ≈ Beta(2, 5)：偏重轨迹早期高噪声段
+n 大时 ≈ Beta(5, 2)：偏重晚期低噪声段（细节与文字保真）</div>
+
+    <h4>与推理对齐：在 CFG 下优化速度场</h4>
+    <ul>
+      <li>直接优化 classifier-free guidance 下的速度场：美学 / OCR / 信息图专家用 <b>s = 4</b> 并做全局范数裁剪；编辑专家用 <b>s = 1</b>。</li>
+      <li>文生图目标面积取自 <code>{1024², 1536², 2048², 3072², 4096²}</code>，目标宽高比取自 <code>{1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, 1:2, 2:1}</code>，最终宽高保持面积并取整到 32 的倍数。</li>
+      <li>图像编辑的生成分辨率跟随源图，仅取整到 32 的倍数。</li>
+    </ul>
+
+    <h4>蒸馏预算</h4>
+    <div class="kvs">
+      <div><span>优化步数</span>800 步</div>
+      <div><span>全局 batch</span>128（梯度累积 1）</div>
+      <div><span>每域样本</span>25,600</div>
+      <div><span>优化器</span>AdamW，LR 2×10⁻⁵，β = (0.9, 0.999)，weight decay 10⁻⁴，max grad norm 1，BF16</div>
+      <div><span>冻结范围</span>理解分支、最后 3 层生成层、生成输出头</div>
+      <div><span>效率技巧</span>整条 30 步轨迹照常走，但<b>采样到查询转移后立即终止</b>，不算无用的轨迹后缀</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 奖励建模 ============ -->
+<section id="reward">
+  <div class="sec-head"><div class="sec-num">7</div><h2>奖励建模</h2></div>
+  <p class="sec-sub">四个能力用四种奖励哲学：偏好模型、显式 OCR 度量、任务条件路由、以及「取最弱项」的多维瓶颈聚合。</p>
+
+  <div class="card">
+    <h3>7.1 美学奖励：HPSv3++</h3>
+    <p>美学质量很难用手工目标刻画（它同时反映构图、保真、语义一致性、风格连贯与人类偏好）。U1.5 采用 <b>HPSv3++</b> 作为偏好奖励 R<sub>HPSv3++</sub>。报告特意强调它的 <b>capability- 与 iteration-aware</b> 训练特性：在 RL 后训练中模型分布持续漂移，固定生成分布上训练的打分器会失效，而 HPSv3++ 能提供更稳健、更自适应的偏好监督，避免过拟合到狭窄的奖励地形。</p>
+  </div>
+
+  <div class="card">
+    <h3>7.2 OCR 奖励：多重集 IoU</h3>
+    <p>视觉上「像样」的图仍可能缺字、多字或字形错乱，因此需要显式的 OCR 奖励。目标文本从 prompt 指定的文本片段抽取，生成图用 PaddleOCR 识别；归一化大小写、标点与空白后，英文切成词、中文切成字：</p>
+    <div class="formula">R<sub>ocr</sub> = Σ<sub>t</sub> min(g<sub>t</sub>, o<sub>t</sub>) / Σ<sub>t</sub> max(g<sub>t</sub>, o<sub>t</sub>)</div>
+    <p>g<sub>t</sub>、o<sub>t</sub> 分别为 token t 在目标与 OCR 转写中的重数。这个多重集 IoU 奖励正确的 token 出现，同时<b>对称地</b>惩罚遗漏、幻觉与重复文本错误，并且对密集/多区域版面下不可靠的 OCR 阅读顺序更鲁棒。</p>
+  </div>
+
+  <div class="card">
+    <h3>7.3 信息图奖励：不做加权求和，只做路由</h3>
+    <p>报告明确说明<b>不引入额外的信息图专用奖励模型</b>，而是通过阶段条件与任务条件路由复用上面的 OCR 与美学奖励：</p>
+    <div class="formula">热身阶段（仅 OCR）：
+R<sup>warmup</sup><sub>info</sub>(x̂<sub>θ</sub>, c) = R<sub>ocr</sub>(x̂<sub>θ</sub>, c)
+
+最终阶段（按提示分区 m ∈ {ocr, aesthetic} 路由）：
+R<sup>final</sup><sub>info</sub>(x̂<sub>θ</sub>, c, m) = R<sub>ocr</sub>(x̂<sub>θ</sub>, c)　若 m = ocr
+　　　　　　　　　　　　　　　= R<sub>HPSv3++</sub>(x̂<sub>θ</sub>, c)　若 m = aesthetic</div>
+    <p>OCR 分与 HPSv3++ 分<b>不相加、不互相归一化</b>。这种路由保留了两者各自的量纲与语义，同时为文字保真与观感提供互补监督。</p>
+  </div>
+
+  <div class="card">
+    <h3>7.4 编辑奖励：五维瓶颈聚合</h3>
+    <p>编辑 RL 需要的不只是「改没改对」，还包括结果是否可信、无关内容是否被保住。单一整体分数会掩盖不同的失败模式，让某一维的强势补偿掉另一维的致命错误。因此 U1.5 用一组维度专用奖励：</p>
+    <ul>
+      <li><b>(i) 指令完成度</b>：编辑结果的语义正确性与所请求变更的完整性。</li>
+      <li><b>(ii) 编辑执行质量</b>：目标区域的视觉质量及其与周边的自然融合程度。</li>
+      <li><b>(iii) 整体视觉质量</b>：全局技术质量与目标风格的一致性。</li>
+      <li><b>(iv) 文字编辑质量</b>（仅当需要可见文字修改时）：文本正确性与渲染质量。</li>
+      <li><b>(v) 未编辑区域保持</b>：比较源图与编辑图，惩罚目标区域之外的意外语义/结构/视觉变化。</li>
+    </ul>
+    <div class="formula">R<sub>edit</sub> = min( {R<sub>inst</sub>, R<sub>exec</sub>, R<sub>visual</sub>, R<sub>pres</sub>} ∪ {R<sub>text</sub> | 适用文字编辑} )</div>
+    <ul>
+      <li>含多个子维度时<b>取最小子分</b>，以暴露最弱环节。</li>
+      <li>不涉及文字修改的指令省略文字项；当请求的变更在视觉上完全未实现时，编辑执行分置零。</li>
+      <li>这种瓶颈式聚合让奖励对「改不完整、改错地方、局部质量缺陷」保持敏感，而不是被某一维的高分掩盖。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 8 数据 ============ -->
+<section id="data">
+  <div class="sec-head"><div class="sec-num">8</div><h2>数据构建</h2></div>
+  <p class="sec-sub">相对 U1，U1.5 大规模扩语料，重心在多样性、视觉质量、高分辨率、复杂指令跟随与精细编辑。</p>
+
+  <figure>
+    <img src="assets/fig5-data-corpus.jpg" alt="SenseNova-U1.5 训练语料构成（技术报告 Figure 5）">
+    <figcaption><b>图 3｜训练语料构成（技术报告 Figure 5）。</b>从左到右依次为图像生成、图像编辑、图文交错与 RL 训练数据。内环为主要类别及占比，外环进一步分解为细粒度子类。</figcaption>
+  </figure>
+
+  <div class="card">
+    <h3>8.1 图像生成数据</h3>
+    <ul>
+      <li>在 U1 基础上新增约 <b>5,900 万</b>图文对，来自 <b>78 个数据源</b>，覆盖通用场景、人物、物体与材质、文字密集图像、信息图等专门域。</li>
+      <li>高分辨率样本占比很高：约 <b>88.2%</b> 的有效训练量超过 1024²，<b>64.4%</b> 超过 2048²。这同时为全局构图/版面与局部结构、纹理、材质等高频细节提供监督。</li>
+      <li>Caption 按多粒度构造：从长详述到简短说明再到轻量语义标签；强化中英双语覆盖（尤其文字密集图像），并显式校验 prompt 指定语言/文本与图中渲染内容的一致性。</li>
+      <li>真实数据之外，对稀有概念、复杂版面、文字密集型设计做定向合成；真实与合成样本走同一条过滤流水线，联合评估感知质量、prompt 保真度、文字正确性、版面质量与视觉多样性。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>8.2 图像编辑数据（约 3,800 万）</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>子集</th><th>占比</th><th>覆盖内容</th></tr></thead>
+      <tbody>
+        <tr><td>通用编辑</td><td>≈ 43%</td><td>局部属性修改、物体插入/删除、场景级变换、姿态与动作编辑、修复增强、文字与版面操作</td></tr>
+        <tr><td>空间受控的信息图编辑</td><td>≈ 42%</td><td>程序化渲染的源–目标对 + 模型生成的样例，可精确操纵文字、视觉元素、版面结构与整体风格</td></tr>
+        <tr><td>参考条件编辑</td><td>≈ 15%</td><td>主体与身份保持、属性迁移、组合集成、视角/姿态/几何/光照的受控变换；<b>每个样例最多 10 张参考图</b></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>此外引入显式的区域级引导（包围框与视觉标记）支持交互式精细操控；对多目标/多约束编辑，加入结构化 prompt 增强与思维链样例，明确刻画编辑意图、目标区域、期望属性、空间或语义约束以及<b>应当保持不变的内容</b>。所有编辑设定下，数据筛选都联合评估指令完成度、目标质量、参考/身份保真度以及编辑区域外内容的保持。</p>
+  </div>
+
+  <div class="card">
+    <h3>8.3 图文交错数据</h3>
+    <ul>
+      <li><b>≈ 44%</b> 生活化轨迹：流程教程、日常场景、绘本叙事——为长程语义连贯、视觉一致性与跨模态依赖提供监督。</li>
+      <li><b>≈ 29%</b> 信息图：结构化构图、密集文本、语言与视觉元素的协同生成。</li>
+      <li><b>≈ 19%</b> 视频派生序列：引入时间演化、状态转移与跨帧依赖。</li>
+      <li><b>≈ 8%</b> 推理密集样例：附带显式中间推理，面向多步复杂理解与生成。</li>
+    </ul>
+    <p>这些来源并非孤立任务集合，而是被转换成<b>统一的轨迹格式</b>，文本与视觉状态渐进交错，暴露从局部图文 grounding 到长程语义推进、时间连续性与推理条件生成的全谱依赖。</p>
+  </div>
+
+  <div class="card">
+    <h3>8.4 RL 训练数据</h3>
+    <ul>
+      <li><b>美学</b>：约 <b>28 万</b> prompt，来源混合 HPSv3++、Pick-a-Pic、用 Cosmos3PE 扩展的双语 prompt 以及内部生成的多样主体/风格/构图/空间配置。每个 prompt 生成多图并用 HPSv3++ 打分；<b>剔除奖励方差过弱的 prompt 组</b>，保留能提供更具判别性相对监督的样例。</li>
+      <li><b>OCR</b>：约 <b>6 万</b> 双语文字渲染 prompt，中英覆盖均衡。其中约 2 万短文本 prompt 采自 Flow-GRPO，再改写成约 4 万条更长、文字更密、渲染要求更复杂的 prompt；指定文本被抽取为参考转写，用于在线 OCR 奖励计算。</li>
+      <li><b>信息图</b>：第一段 GRPO 复用 OCR 语料，后段按任务奖励联合迭代 OCR 与美学 prompt。</li>
+      <li><b>DPO</b>：约 <b>12 万</b> 条筛选后的偏好对（来自 Linear-DPO 语料），并针对人像/非人像与中英文 prompt 做额外平衡。</li>
+      <li><b>编辑</b>：约 <b>12 万</b> 样例，局部编辑占约 80%、全局约 20%，训练分辨率 512²–2048²，含中/英/混语指令。数据清洗分三步：去损坏/重复/低分辨率/退化样本并保留多样宽高比；校验指令中的实体、文本、空间区域与视觉属性在源图中有据可依且目标图确实实现了修改；对源图与编辑图都评估美学、技术质量与结构/纹理丰富度，用保守的成对聚合暴露任一方的缺陷。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>8.5 数据侧的两个关键判断</h3>
+    <div class="pillars two">
+      <div class="pcard"><span class="n">判断一</span><b>高分辨率不是「加个超分」</b><p>64.4% 的有效训练量 &gt; 2048² 意味着模型是在真正的多尺度统计下学习，而不只是被放大。这与 Phase II 的原生 4K 阶段、以及 4096² 的噪声尺度标定共同构成「原生 4K」的三件套。</p></div>
+      <div class="pcard"><span class="n">判断二</span><b>「保持不变」也是监督信号</b><p>编辑数据里显式标注「应当保留什么」，与 §7.4 中「未编辑区域保持」这一维奖励形成闭环。这是 U1.5 编辑能力提升的真正来源，而不只是模型更大。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9 评测 ============ -->
+<section id="eval">
+  <div class="sec-head"><div class="sec-num">9</div><h2>评测结果</h2></div>
+  <p class="sec-sub">理解、生成、编辑、交错与推理四条线。注意口径差异：部分成绩标注了 prompt enhancement（w/ PE）或 chain-of-thought（w/ CoT）。</p>
+
+  <figure>
+    <img src="assets/u1.5_radial.webp" alt="SenseNova-U1.5 基准总览（官方雷达图）">
+    <figcaption><b>图 4｜官方基准总览。</b>覆盖理解、生成、编辑与交错生成的多维雷达对比（来源：官方仓库 <code>docs/assets/benchmarks/u1.5_radial.webp</code>）。</figcaption>
+  </figure>
+  <figure>
+    <img src="assets/u1.5_combined.webp" alt="SenseNova-U1.5 详细基准结果">
+    <figcaption><b>图 5｜详细基准结果。</b>各基准上的逐项得分（来源：官方仓库 <code>docs/assets/benchmarks/u1.5_combined.webp</code>）。</figcaption>
+  </figure>
+
+  <div class="card">
+    <h3>9.1 通用理解：生成能力没有吃掉理解能力</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>基准</th><th>SenseNova-U1.5<br>8B-Think</th><th>SenseNova-U1<br>8B-Think</th><th>Qwen3-VL<br>8B-Think</th><th>Qwen3.5<br>9B</th><th>Gemma4<br>12B</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>MMMU</td><td>73.86</td><td>74.78</td><td>74.10</td><td>78.40</td><td>64.67*</td></tr>
+        <tr><td>MMMU-Pro</td><td>66.47</td><td>67.69</td><td>60.40</td><td>70.10</td><td>69.10</td></tr>
+        <tr><td>MathVista-mini</td><td>85.85</td><td>84.20</td><td>81.40</td><td>85.70</td><td>74.70*</td></tr>
+        <tr><td>MathVision</td><td>73.55</td><td>75.82</td><td>62.70</td><td>78.90</td><td>79.70</td></tr>
+        <tr class="hl"><td>MMBench-EN</td><td>90.47</td><td>90.25</td><td>87.50</td><td>90.10</td><td>83.85*</td></tr>
+        <tr><td>MMStar</td><td>77.53</td><td>78.27</td><td>75.30</td><td>79.70</td><td>70.13*</td></tr>
+        <tr><td>InfoVQA</td><td>82.51</td><td>82.46</td><td>86.00</td><td>90.76</td><td>88.40</td></tr>
+        <tr><td>OCRBench-v2</td><td>59.07</td><td>61.30</td><td>61.55</td><td>66.54</td><td>67.46*</td></tr>
+        <tr class="hl"><td>AI2D</td><td>92.03</td><td>91.74</td><td>84.90</td><td>90.20</td><td>84.00*</td></tr>
+        <tr><td>OCRBench</td><td>82.46</td><td>82.10</td><td>81.90</td><td>89.20</td><td>76.90*</td></tr>
+        <tr><td>HallusionBench</td><td>68.53</td><td>67.75</td><td>65.40</td><td>69.30</td><td>66.43*</td></tr>
+        <tr><td>BabyVision</td><td>25.52</td><td>25.00</td><td>17.78</td><td>25.80</td><td>22.43*</td></tr>
+        <tr><td>TiR</td><td>28.68</td><td>28.15</td><td>22.30</td><td>31.90</td><td>27.32*</td></tr>
+        <tr class="hl"><td>MMLU-Pro</td><td>86.67</td><td>81.44</td><td>77.30</td><td>82.50</td><td>77.20</td></tr>
+        <tr><td>MMLU-Redux</td><td>86.33</td><td>87.61</td><td>88.80</td><td>91.10</td><td>88.33*</td></tr>
+        <tr class="hl"><td>C-Eval</td><td>90.41</td><td>84.40</td><td>83.88</td><td>88.20</td><td>84.23*</td></tr>
+        <tr><td>SuperGPQA</td><td>49.55</td><td>49.67</td><td>51.20</td><td>58.20</td><td>48.43*</td></tr>
+        <tr class="hl"><td>IFEval</td><td>93.35</td><td>91.13</td><td>83.20</td><td>91.50</td><td>97.20</td></tr>
+        <tr><td>IFBench</td><td>69.00</td><td>67.01</td><td>29.93</td><td>64.50</td><td>74.00</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tcap">Table 3（技术报告）。* 表示用 VLMEvalKit 复现的结果。U1、U1.5 与 Qwen3-VL 均从 Qwen3 LLM 权重初始化；Gemma4-12B 是近期 SOTA 级<b>无编码器</b>模型。</p>
+    <ul>
+      <li>相对 U1：多数基准持平或提升，说明「更强的生成建模没有以牺牲视觉理解为代价」。MMLU-Pro 81.44 → <span class="up">86.67</span>、C-Eval 84.40 → <span class="up">90.41</span>、IFBench 67.01 → <span class="up">69.00</span> 是明显进步。</li>
+      <li>作为<b>无编码器</b>架构，U1.5 在多项视觉理解上与模块化强基线 Qwen3-VL 相当或更好，并与同为无编码器的 Gemma4-12B 相比整体不落下风。</li>
+      <li>反过来看也要诚实：MMMU / MMMU-Pro / MathVision / OCRBench 系列相对 U1 略有回落（例如 OCRBench-v2 61.30 → 59.07），报告口径是「preserves or improves on most benchmarks」。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>9.2 通用生成：Qwen-Image-Bench（中英双榜）</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>模型</th><th># Params</th><th>Quality</th><th>Aesthetics</th><th>Alignment</th><th>Real-world Fidelity</th><th>Creative Gen.</th><th>Overall ↑</th></tr></thead>
+      <tbody>
+        <tr><td>GPT-Image-2（闭源）</td><td>–</td><td>59.09</td><td>68.48</td><td>65.78</td><td>59.40</td><td>75.34</td><td><b>65.23</b></td></tr>
+        <tr><td>Nano-Banana-2.0（闭源）</td><td>–</td><td>54.86</td><td>62.63</td><td>61.11</td><td>54.66</td><td>64.49</td><td>59.59</td></tr>
+        <tr class="hl"><td>SenseNova-U1.5（w/ PE）</td><td>8B</td><td>54.74</td><td>63.72</td><td>61.79</td><td>53.40</td><td>67.89</td><td>60.22</td></tr>
+        <tr><td>LLaDA-Image</td><td>6B</td><td>53.22</td><td>58.22</td><td>54.77</td><td>43.90</td><td>51.09</td><td>53.53</td></tr>
+        <tr class="hl"><td>SenseNova-U1.5（无 PE）</td><td>8B</td><td>51.27</td><td>55.19</td><td>54.64</td><td>48.67</td><td>51.87</td><td>52.82</td></tr>
+        <tr><td>Qwen-Image-2512</td><td>20B</td><td>51.84</td><td>54.40</td><td>51.44</td><td>47.80</td><td>47.75</td><td>51.32</td></tr>
+        <tr><td>SenseNova-U1</td><td>8B</td><td>47.30</td><td>50.30</td><td>50.58</td><td>43.13</td><td>46.15</td><td>48.28</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tcap">Table 4（技术报告，英文子集）。中文子集（Table 5）总体分：U1.5 w/ PE <b>60.13</b>、U1.5 52.43、U1 45.99、Qwen-Image-2512 52.06。加 PE 后中英双榜均取得<b>评测开源模型中最佳总体分</b>。</p>
+    <div class="callout">
+      <div class="t">读法提示</div>
+      <p>同一模型「有 PE / 无 PE」差了 7.4 分（EN），这个落差本身就是结论：U1.5 对 prompt 表述方式相当敏感，官方也因此把 Image PE（把简短 brief 转成紧凑 Render JSON 的预处理）列为<b>强烈推荐</b>的默认步骤。跨表比较时务必先看口径。</p>
+    </div>
+    <figure>
+      <img src="assets/u15_perform_vs_speed_6bench.png" alt="SenseNova-U1.5 生成性能 vs 延迟">
+      <figcaption><b>图 6｜性能 vs 速度。</b>横轴为生成延迟，纵轴为在 OneIG（EN/ZH）、LongText（EN/ZH）、BizGenEval（Easy/Hard）、CVTG、IGenBench 与 Qwen-Image-Bench 上的平均表现。U1.5 用 8B 生成分支落在「高表现 / 低延迟」区域（来源：官方仓库 <code>docs/assets/u15_perform_vs_speed_6bench.webp</code>）。</figcaption>
+    </figure>
+  </div>
+
+  <div class="card">
+    <h3>9.3 组合式生成：GenEval / GenEval2</h3>
+    <div class="grid2">
+      <div>
+        <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>GenEval</th><th># Params</th><th>Counting</th><th>Position</th><th>Attr. Bind.</th><th>Overall ↑</th></tr></thead>
+          <tbody>
+            <tr class="hl"><td>SenseNova-U1.5</td><td>8B</td><td>0.93</td><td>0.92</td><td>0.81</td><td><b>0.92</b></td></tr>
+            <tr><td>SenseNova-U1</td><td>8B</td><td>0.92</td><td>0.91</td><td>0.76</td><td>0.91</td></tr>
+            <tr><td>NEO-unify</td><td>8B</td><td>0.90</td><td>0.91</td><td>0.77</td><td>0.90</td></tr>
+            <tr><td>Tuna</td><td>7B</td><td>0.81</td><td>0.88</td><td>0.83</td><td>0.90</td></tr>
+            <tr><td>GPT-Image-2（闭源）</td><td>–</td><td>0.85</td><td>0.85</td><td>0.77</td><td>0.89</td></tr>
+            <tr><td>Qwen-Image</td><td>20B</td><td>0.89</td><td>0.76</td><td>0.77</td><td>0.87</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="tcap">Table 6。U1.5 取得开源最佳 0.92，在 counting / position / attribute binding 上改善最明显。</p>
+      </div>
+      <div>
+        <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>GenEval2</th><th># Params</th><th>Attribute</th><th>Counting</th><th>Position</th><th>Verb</th><th>Overall ↑</th></tr></thead>
+          <tbody>
+            <tr><td>GPT-Image-2（闭源）</td><td>–</td><td>0.98</td><td>0.89</td><td>0.90</td><td>0.70</td><td><b>0.81</b></td></tr>
+            <tr><td>Qwen-Image-3.0（闭源）</td><td>–</td><td>0.97</td><td>0.85</td><td>0.91</td><td>0.54</td><td>0.76</td></tr>
+            <tr class="hl"><td>SenseNova-U1.5（w/ PE）</td><td>8B</td><td>0.99</td><td>0.83</td><td>0.90</td><td>0.55</td><td><b>0.71</b></td></tr>
+            <tr><td>SenseNova-U1.5（无 PE）</td><td>8B</td><td>0.89</td><td>0.77</td><td>0.77</td><td>0.41</td><td>0.55</td></tr>
+            <tr><td>SenseNova-U1</td><td>8B</td><td>0.85</td><td>0.71</td><td>0.78</td><td>0.38</td><td>0.43</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="tcap">Table 7。加 PE 后大幅超过所有评测开源基线，attribute / counting / verb 提升尤其显著。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>9.4 文字渲染与信息图：U1.5 最强的差异化能力</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>基准</th><th>SenseNova-U1.5</th><th>SenseNova-U1</th><th>参考对比</th><th>报告结论</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>LongText-Bench（EN / ZH）</td><td>0.988 / 0.989</td><td>0.979 / 0.962</td><td>Seedream 4.5：0.989 / 0.987<br>Qwen-Image-3.0：0.982 / 0.971</td><td>中英双榜开源领先，<b>中文提升尤为明显</b>；文本更长、版面更复杂时准确率依然稳健</td></tr>
+        <tr class="hl"><td>CVTG-2K</td><td>平均 <b>0.948</b></td><td>0.936</td><td>LLaDA-Image 0.875；Z-Image 0.867</td><td><b>全部评测模型中最佳</b>；四区域、五区域密集文本词准确率仍在 0.95 以上</td></tr>
+        <tr><td>IGenBench</td><td>开源最佳（+PE 进一步提升）</td><td>—</td><td>—</td><td>信息图生成与结构化视觉规划更可靠，但与最强闭源仍有差距</td></tr>
+        <tr class="hl"><td>BizGenEval（hard / easy）</td><td>72.2 / 88.4（w/ PE）</td><td>39.7 / 61.7</td><td>GPT-Image-2：— / 82.8</td><td>hard 子集相比 U1 有数量级式的改进</td></tr>
+        <tr><td>DPG-Bench</td><td>88.11</td><td>87.78</td><td>Qwen-Image 20B 88.32；Z-Image 88.14</td><td>位列开源第一梯队；entity / attribute / relation 等细粒度维度均衡</td></tr>
+        <tr><td>OneIG-EN / ZH（Overall）</td><td>0.552 / 0.536</td><td>0.549 / 0.535</td><td>—</td><td>生成画像均衡，最大优势在<b>双语文字中心</b>任务</td></tr>
+        <tr><td>WISE</td><td>无 CoT 已具竞争力</td><td>—</td><td>—</td><td>启用 CoT 后大幅提升并取得开源领先；文化知识、生物、化学等知识密集域收益最大</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tcap">综合 Table 8–13 与 §5.2 正文叙述。BizGenEval 每格为 hard / easy 分数；IGenBench 与 WISE 的列头在 PDF 抽取中不完整，故按其正文结论表述。</p>
+  </div>
+
+  <div class="card">
+    <h3>9.5 图像编辑</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>基准</th><th># Params</th><th>Add</th><th>Adjust</th><th>Extract</th><th>Replace</th><th>Remove</th><th>Background</th><th>Style</th><th>Hybrid</th><th>Action</th><th>Overall ↑</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>SenseNova-U1.5</td><td>8B</td><td>4.64</td><td>4.66</td><td>4.20</td><td>4.84</td><td>4.54</td><td>4.59</td><td>4.91</td><td>4.36</td><td>4.61</td><td><b>4.59</b></td></tr>
+        <tr><td>UniWorld-V2（闭源）</td><td>–</td><td>4.29</td><td>4.44</td><td>4.32</td><td>4.69</td><td>4.72</td><td>4.41</td><td>4.91</td><td>3.83</td><td>4.83</td><td>4.49</td></tr>
+        <tr><td>Nano-Banana-Pro（闭源）</td><td>–</td><td>4.44</td><td>4.62</td><td>3.42</td><td>4.60</td><td>4.63</td><td>4.32</td><td>4.97</td><td>3.64</td><td>4.69</td><td>4.37</td></tr>
+        <tr><td>Seedream 4.5（闭源）</td><td>–</td><td>4.57</td><td>4.65</td><td>2.97</td><td>4.66</td><td>4.46</td><td>4.37</td><td>4.92</td><td>3.71</td><td>4.56</td><td>4.32</td></tr>
+        <tr><td>GPT-Image-1（闭源）</td><td>–</td><td>4.61</td><td>4.33</td><td>2.90</td><td>4.35</td><td>3.66</td><td>4.57</td><td>4.93</td><td>3.96</td><td>4.89</td><td>4.20</td></tr>
+        <tr><td>Qwen-Image-Edit-2511</td><td>20B</td><td>4.54</td><td>4.57</td><td>4.13</td><td>4.70</td><td>4.46</td><td>4.36</td><td>4.89</td><td>4.16</td><td>4.81</td><td>4.51</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tcap">Table 16（ImgEdit）。U1.5 的总体分是本表所列模型（含闭源）中的最高值，且相对 U1 有「跨类别的持续提升」——报告归因为更强的编辑执行，同时没有牺牲源图保持与视觉质量。</p>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>其他编辑基准</th><th>SenseNova-U1.5</th><th>SenseNova-U1 / 对比</th><th>报告结论</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>GEdit-Bench（Overall）</td><td>8.24</td><td>U1：7.70</td><td>最强总体表现；语义一致性提升尤其明显</td></tr>
+        <tr><td>WeEdit</td><td>开源大幅领先</td><td>—</td><td>指令遵循、文字清晰度与背景保持俱佳，与领先闭源系统仍有竞争力</td></tr>
+        <tr class="hl"><td>OmniRef-Bench（目标 / MLLM 双协议）</td><td>开源领先</td><td>—</td><td>风格一致性与背景保持增益最大；主体与姿态一致性说明身份/外观/结构线索在多条件下可靠保留</td></tr>
+        <tr><td>RISEBench（推理式编辑）</td><td>无 CoT 即超开源基线</td><td>—</td><td>CoT 进一步提升，<b>因果、逻辑、时序</b>类编辑收益最大；空间类编辑收益不稳定——显式推理对「需要先推断再定位」的隐式多步变换最有价值</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>9.6 交错生成与「生成即推理」</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>基准</th><th>SenseNova-U1.5</th><th>对比</th><th>报告结论</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>OpenING</td><td>w/ CoT 取得领先总体成绩</td><td>SenseNova-U1-SFT w/ CoT：各部分 9.14 / 9.03 / 8.43 / 9.08 / 9.35 / 9.40</td><td>超过 U1 与所对比的闭源管线；图文一致性、人类对齐与多步一致性表现强</td></tr>
+        <tr class="hl"><td>VBVR-Pro-Bench（交错生成设置，Overall）</td><td><b>68.2</b>（ID 均分 67.6 / OOD 均分 68.9）</td><td>Nano-Banana-Pro 56.4；GPT-Image-2 50.7；VBVR-SenseNova-U1 40.8</td><td>在各项认知能力上刷新 SOTA，且 OOD 泛化强于领先闭源模型</td></tr>
+        <tr><td>Uni-MMMU-GaU（生成辅助理解）</td><td>86.0</td><td>U1-SFT：87.3</td><td>与前代保持竞争力</td></tr>
+        <tr class="hl"><td>RealUnify-GEU（生成增强理解）</td><td>相比 U1-SFT 有明显提升</td><td>—</td><td>说明生成不仅是输出模态，也可作为支持多模态推理与理解的<b>中间表征</b></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="callout green">
+      <div class="t">这一节才是「原生统一」最有说服力的证据</div>
+      <p>文本渲染、编辑保真这些还能靠专用数据堆出来；VBVR-Pro 上 U1.5（68.2）大幅超过同门专用方案 VBVR-SenseNova-U1（40.8）以及闭源旗舰，说明<b>交错图文生成本身就能承担推理</b>。报告因此把结论落在「能力交互」而非「架构简化」上。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 创新点 ============ -->
+<section id="insight">
+  <div class="sec-head"><div class="sec-num">10</div><h2>创新点总结</h2></div>
+  <p class="sec-sub">按「对领域有实际推动」的标准筛出八条，并标注它相对 U1 或同期工作是新增还是加强。</p>
+
+  <div class="card">
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>#</th><th>创新点</th><th>新在哪</th><th>证据 / 效果</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><b>空间耦合解码器</b>（Pixel Shuffle 2/2/8 + 3×3 卷积）</td><td>新增。把「逐 patch 独立解 RGB」换成「二维特征场上的联合重建」</td><td>消除高分辨率下的接缝、网格伪影与纹理不连续；让 32×32 的激进压缩比与 4K 输出可以共存</td></tr>
+        <tr><td>2</td><td><b>4096² 标定的分辨率感知噪声条件</b></td><td>加强。U1 只标定到 2048²</td><td>s<sub>t</sub> = τ<sub>t</sub> + NSEmb(σ̄<sub>R</sub>) 让去噪器显式感知分辨率相关的噪声统计，适配多分辨率与多宽高比</td></tr>
+        <tr><td>3</td><td><b>specialize-then-unify 后训练范式</b></td><td>新增。用四个能力专家 + MOPD 替代联合奖励优化</td><td>避免异构奖励互相纠缠与稀释；四专家能力合回单策略后，生成/编辑/信息图指标同时提升</td></tr>
+        <tr><td>4</td><td><b>多专家在策略速度场蒸馏（MOPD）</b>，硬路由 + Beta 噪声调度</td><td>新增。t<sub>e</sub> ~ Beta(2+3n/N, 5−3n/N) 从高噪声平滑移到低噪声</td><td>沿学生自生成轨迹蒸馏，既学全局结构又学局部细节与文字保真；直接在 CFG 速度场下优化以对齐推理</td></tr>
+        <tr><td>5</td><td><b>多重集 IoU 的 OCR 奖励</b></td><td>新增。不用精确匹配，也不用统一奖励模型</td><td>对遗漏、幻觉、重复文本对称惩罚；对密集多区域版面下的 OCR 阅读顺序不敏感</td></tr>
+        <tr><td>6</td><td><b>编辑的五维瓶颈奖励 + 渐进式训练</b></td><td>新增。取 min 而非加权和</td><td>让「改不完整 / 改错地方 / 局部缺陷」无法被其他维度的高分掩盖；滑窗策略实现从语义到纹理的粗到细</td></tr>
+        <tr><td>7</td><td><b>奖励路由而非奖励混加</b>（美学/OCR 分阶段或分任务路由）</td><td>新增的工程原则</td><td>避免不同量纲与语义的奖励在同一 batch 内互相污染；报告特别指出纯美学优化会牺牲文字可读性</td></tr>
+        <tr><td>8</td><td><b>「理解能力可迁移到视觉创作」的实证</b></td><td>新发现</td><td>生成数据中结构化格式曝光有限，却泛化到长/组合/高度结构化的视觉指令；VBVR-Pro 68.2 远超专用方案 40.8</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>10.1 对照：它与同期的统一多模态路线差在哪</h3>
+    <ul>
+      <li><b>与「共享 tokenizer」路线</b>（离散原生模型，如 Emu3.5 / OneCAT 等）：那些方案靠 token 级自回归把多模态统一起来，需要在语义与像素间做量化折中；U1.5 走连续原生路线，不做显式 tokenizer、不设 latent 瓶颈。</li>
+      <li><b>与「VE + VAE 双塔」路线</b>（Qwen-Image / Seedream / Nano-Banana 等）：那类系统在各自空间里已经很强，代价是两套表征与转换开销；U1.5 用一个共享视觉底层同时支撑理解与生成，用 8B 的生成分支在 ImgEdit 总体分上压过多个闭源大模型。</li>
+      <li><b>与 NEO-unify 原型</b>：原型证明了可行性（2B、31.56 PSNR）；U1.5 补齐了高分辨率的空间一致性、原生的 4K 训练阶段与一整套后训练基础设施。</li>
+      <li><b>与 U1</b>：U1 证明范式可行；U1.5 的两处改造（空间联合重建 + specialize-then-unify）才是把「可用」推向「好用」的关键。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 11 局限 ============ -->
+<section id="limit">
+  <div class="sec-head"><div class="sec-num">11</div><h2>局限、风险与观察</h2></div>
+  <p class="sec-sub">先列官方自述的「Ongoing Improvements」，再补充读报告时值得注意的方法论问题。</p>
+
+  <div class="card">
+    <h3>11.1 官方承认的不足</h3>
+    <div class="pillars">
+      <div class="pcard"><span class="n">L1</span><b>细节/颜色过度强调</b><p>某些 prompt 会产生过量高频细节或过饱和色彩，通常可通过<b>降低 <code>cfg_scale</code></b> 缓解。</p></div>
+      <div class="pcard"><span class="n">L2</span><b>密集文字错误</b><p>密集、冗长、过小或中英混排的文字仍可能出现错误。</p></div>
+      <div class="pcard"><span class="n">L3</span><b>强约束版面</b><p>在强约束版面下，精确数量、对齐与层级仍可能不完美。</p></div>
+      <div class="pcard"><span class="n">L4</span><b>人物细节不稳定</b><p>小脸、手部、肢体与细粒度物体结构仍可能不稳定。</p></div>
+      <div class="pcard"><span class="n">L5</span><b>复杂编辑漂移</b><p>大范围、多轮或多参考编辑可能漂移，特别是在需要同时保很多区域时。</p></div>
+      <div class="pcard"><span class="n">L6</span><b>上下文与代际遗留</b><p>U1 侧自述理解上下文仅支持到 <b>32K</b> token；交错生成被标注为实验性，RL 未针对编辑/推理/交错专门优化（性能与 SFT 相当）。</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>11.2 读报告时需要留意的几点</h3>
+    <ul>
+      <li><b>口径不统一会放大结论。</b>同一个 U1.5 在 Qwen-Image-Bench-EN 上是 60.22（w/ PE）或 52.82（无 PE）；GenEval2 是 0.71 / 0.55；RISEBench 也分 w/ CoT 与无 CoT。任何「超过 X」的说法都要先确认口径，尤其是与使用原生长 prompt 的闭源模型对比时。</li>
+      <li><b>不是所有指标都相对 U1 上升。</b>MMMU 74.78 → 73.86、MMMU-Pro 67.69 → 66.47、MathVision 75.82 → 73.55、OCRBench-v2 61.30 → 59.07 都是小幅回落。这与「更强的生成能力挤占了理解容量」的直觉一致，尽管报告强调多数基准持平或提升。</li>
+      <li><b>理解分支来自 Qwen3 权重。</b>U1 / U1.5 / Qwen3-VL 三者同源初始化，因此理解侧与 Qwen3-VL 的比较更多是「架构与训练配方」的比较，而非完全独立的横向对比。</li>
+      <li><b>PE 是外部依赖。</b>官方推荐流程里的 Image PE 是一个调用 OpenAI 兼容 Responses API 的 Python 脚本（<code>src/sensenova_u1_5/image_pe.py</code>），意味着「最佳成绩」的完整管线需要额外的模型与 API 成本，而不是单纯的前向推理。</li>
+      <li><b>训练成本的可见部分只是一半。</b>报告披露了五阶段步数与全局 batch，但未给出总 GPU 时、数据清洗算力与 RL rollout 成本；4K 阶段的 20,480 序列长度与 4096² 样本意味着这里存在显著且未公开的算力门槛。</li>
+      <li><b>本页所有数字来自官方材料。</b>基准分数、配置与超参均摘自技术报告、GitHub README 与 Hugging Face 模型卡，未做独立复现。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 12 部署 ============ -->
+<section id="deploy">
+  <div class="sec-head"><div class="sec-num">12</div><h2>部署与生态</h2></div>
+  <p class="sec-sub">从官方权重到消费级单卡、从 ComfyUI 到生产级推理栈，U1.5 的工程配套比多数研究型统一模型完整。</p>
+
+  <div class="card">
+    <h3>12.1 可用权重</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>模型</th><th>阶段 / 参数量</th><th>HF 权重</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>SenseNova-U1.5-8B-MoT</td><td>RL，8B MoT（旗舰）</td><td><code>sensenova/SenseNova-U1.5-8B-MoT</code></td></tr>
+        <tr><td>SenseNova-U1.5-8B-MoT-SFT</td><td>监督微调</td><td><code>sensenova/SenseNova-U1.5-8B-MoT-SFT</code></td></tr>
+        <tr><td>SenseNova-U1.5-8B-MoT-LoRA-8step</td><td>0.4B，8 步加速</td><td><code>sensenova/SenseNova-U1.5-8B-MoT-LoRAs</code></td></tr>
+        <tr><td>SenseNova-U1.5-8B-MoT-Preview</td><td>预览版（社区有 Q8 GGUF）</td><td><code>sensenova/SenseNova-U1.5-8B-MoT-Preview</code></td></tr>
+        <tr><td>SenseNova-U1-8B-MoT / -SFT / -Interleaved</td><td>8B MoT（前代及专门变体）</td><td>sensenova 系列仓库</td></tr>
+        <tr><td>SenseNova-U1-8B-MoT-Infographic（V1/V2/V3）</td><td>信息图专用</td><td>sensenova 系列仓库</td></tr>
+        <tr><td>SenseNova-U1-A3B-MoT / -SFT</td><td>38B-A3B MoE + MoT</td><td>sensenova 系列仓库</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tcap">另：社区 Q8_0 GGUF（21.2 GB，realrebelai）、U1.5 Preview Q8 GGUF（19.9 GB，smthem）、hf 上有 13 个 finetune 与 6 个量化衍生模型。</p>
+  </div>
+
+  <div class="card">
+    <h3>12.2 快速上手</h3>
+    <pre><code>git clone https://github.com/OpenSenseNova/SenseNova-U1.git
+cd SenseNova-U1
+uv sync
+source .venv/bin/activate          # Python 3.11 / PyTorch 2.8 / CUDA 12.8
+
+# 文生图
+python examples/t2i/inference.py \
+  --model_path sensenova/SenseNova-U1.5-8B-MoT \
+  --prompt "A cinematic mountain lake at sunrise, realistic photography." \
+  --width 2048 --height 2048 --device_map auto --output output.png
+
+# 图像编辑
+python examples/editing/inference.py \
+  --model_path sensenova/SenseNova-U1.5-8B-MoT \
+  --image input.png \
+  --prompt "Change the jacket to cobalt blue. Preserve the face, pose, background, lighting, and framing." \
+  --output edited.png
+
+# 交错生成
+python examples/interleave/inference.py \
+  --model_path sensenova/SenseNova-U1.5-8B-MoT \
+  --prompt "I want to learn how to cook tomato and egg stir-fry. Please give me a beginner-friendly illustrated tutorial." \
+  --resolution "16:9" --output_dir outputs/interleave/ --stem demo
+
+# 视觉理解
+python examples/vqa/inference.py \
+  --model_path sensenova/SenseNova-U1.5-8B-MoT \
+  --image examples/vqa/data/images/menu.jpg \
+  --question "..." --output outputs/answer.txt --max_new_tokens 8192</code></pre>
+    <p class="muted">默认分辨率 2048×2048（1:1）；其他宽高比见 <code>examples/README.md#supported-resolution-buckets</code>。信息图类任务建议先做 prompt enhancement。</p>
+  </div>
+
+  <div class="card">
+    <h3>12.3 单卡低显存：GGUF + 分层 offload</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th><code>--vram_mode</code></th><th>行为</th><th>适用场景</th></tr></thead>
+      <tbody>
+        <tr><td><code>full</code>（默认）</td><td>不 offload，整模型常驻 GPU</td><td>显存充裕，速度最佳</td></tr>
+        <tr><td><code>fast</code></td><td>异步预取，在显存预算内保留生成层</td><td>24 GB 级 GPU，接近满速</td></tr>
+        <tr><td><code>low</code></td><td>逐层同步 CPU↔GPU 交换</td><td>显存占用最低</td></tr>
+        <tr><td><code>balanced</code></td><td>异步预取把 H2D 拷贝与计算重叠</td><td>显存紧张但想找回速度</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><b>推荐组合：Q4 GGUF + <code>balanced</code>，面向约 10–12 GB 消费级显卡。</b><code>fast</code> 模式默认 90% 自动显存预算、2 GiB 可复用余量、4 GiB 激活预留，均可通过 <code>--fast_vram_fraction / --fast_vram_headroom_gib / --fast_activation_reserve_gib / --fast_vram_budget_gib</code> 调整。</p>
+  </div>
+
+  <div class="card">
+    <h3>12.4 生产服务：LightLLM + LightX2V</h3>
+    <ul>
+      <li>官方与 ModelTC 联合设计专用推理栈：<b>LightLLM 负责理解、LightX2V 负责生成，两引擎解耦</b>，各自使用独立的并行策略与资源预算，中间走低开销传输通道。</li>
+      <li>单节点 <b>TP2 + CFG2</b> 下，H100 / H200 上 2048×2048 图像约 <b>0.15 s/step</b>、端到端约 <b>9 秒</b>；基于 FA3 的混合掩码注意力相对 Triton 基线带来约 <b>2.4–3.2×</b> 的 prefill 加速。</li>
+      <li>一键部署镜像：<code>docker pull lightx2v/lightllm_lightx2v:20260407</code>；细节见 <code>docs/deployment.md</code> 与 <code>docs/inference_infra.md</code>。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>12.5 生态触达</h3>
+    <div class="pillars">
+      <div class="pcard"><b>SenseNova-Studio</b><p>免费在线体验（<a href="https://unify.light-ai.top/">unify.light-ai.top</a>），无需安装与 GPU；线上 U1-Fast 经过步数与 CFG 蒸馏，专攻信息图。</p></div>
+      <div class="pcard"><b>ComfyUI</b><p>仓库内提供 <code>apps/comfyui</code> 节点与工作流（含信息图 T2I/编辑、编辑参考图分辨率处理）。</p></div>
+      <div class="pcard"><b>SenseNova-Skills</b><p>配套仓库把 U1 封装成可直接调用的 skill，提供统一 tool-calling 接口，便于接入自建 agent。</p></div>
+      <div class="pcard"><b>训练代码</b><p><code>training/</code> 提供基于 InternEvo 的 NEO-Unify 全参微调框架（<code>sensenovalm / sensenovavl</code>），示例数据集托管在 HF。</p></div>
+      <div class="pcard"><b>Transformers 兼容</b><p>同时支持 transformers 4.x 与 5.x 推理；GGUF 走 <code>diffusers</code> 的 GGUF Linear 层。</p></div>
+      <div class="pcard"><b>社区信号</b><p>GitHub 约 6.8k star / 529 fork；HF 上月下载约 1.07 万次；已有 3 个 adapter、13 个 finetune、6 个量化模型。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13 结论 ============ -->
+<section id="conclusion">
+  <div class="sec-head"><div class="sec-num">13</div><h2>结论</h2></div>
+  <div class="callout key">
+    <div class="t">一句话总结</div>
+    <p>SenseNova-U1.5 用一次「接口重做 + 后训练范式重做」，把无编码器、无 VAE 的原生统一路线从「概念可行」推到「在文字渲染、信息图、编辑与交错推理上具备竞争力」，并且用 VBVR-Pro 这类基准证明了统一架构的真正红利是<b>能力之间的互相增强</b>。</p>
+  </div>
+  <div class="card">
+    <h3>如果你只记三件事</h3>
+    <ol class="steps">
+      <li><b>视觉接口的「最后一步」值得单独设计。</b>32×32 的激进压缩比只有在解码端补回跨 patch 空间交互时才站得住；Pixel Shuffle + 3×3 卷积这个便宜的组合直接决定了 4K 是否可用。</li>
+      <li><b>异构能力不要硬塞进一个奖励里。</b>四专家 + MOPD 的价值不在「更多算力」，而在允许每个能力拥有自己的奖励、采样与正则，最后只在速度场层面统一。</li>
+      <li><b>统一架构的回报是跨能力迁移。</b>报告最有分量的数字不是某个 T2I 分数，而是 VBVR-Pro 上 68.2 对 40.8 的对比——生成变成了推理的一部分。</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 14 资料 ============ -->
+<section id="ref">
+  <div class="sec-head"><div class="sec-num">14</div><h2>资料与出处</h2></div>
+  <p class="sec-sub">本页所有事实、图表与数字均来自以下官方材料，快照时间 2026-09-18。</p>
+  <div class="card">
+    <h3>一手来源</h3>
+    <ul>
+      <li>技术报告（PDF，35 页）：<a href="https://github.com/OpenSenseNova/SenseNova-U1/blob/main/docs/pdf/SenseNOVA_U1_5.pdf">SenseNova-U1.5: Towards Native Unified Visual Intelligence</a> · arXiv:2609.11929</li>
+      <li>GitHub 仓库：<a href="https://github.com/OpenSenseNova/SenseNova-U1">OpenSenseNova/SenseNova-U1</a>（README / docs / examples / training / apps/comfyui）</li>
+      <li>Hugging Face 模型卡：<a href="https://huggingface.co/sensenova/SenseNova-U1.5-8B-MoT">sensenova/SenseNova-U1.5-8B-MoT</a>，集合页 <a href="https://huggingface.co/collections/sensenova/sensenova-u15">sensenova-u15</a></li>
+      <li>架构博客：<a href="https://huggingface.co/blog/sensenova/neo-unify">NEO-unify: Building Native Multimodal Unified Models End to End</a>（2026-03-05）</li>
+      <li>U1 技术报告：arXiv:2605.12500 · <a href="https://github.com/OpenSenseNova/SenseNova-U1/blob/main/docs/pdf/SenseNOVA_U1.pdf">PDF</a></li>
+      <li>最佳实践：<a href="https://github.com/OpenSenseNova/SenseNova-U1/blob/main/docs/u1.5_best_practices.md">U1.5 Cookbook</a>（Image PE / Caption-to-Prompt / Editing PE）</li>
+      <li>ModelScope 镜像：<a href="https://modelscope.cn/models/SenseNova/SenseNova-U1.5-8B-MoT">SenseNova/SenseNova-U1.5-8B-MoT</a></li>
+      <li>在线体验：<a href="https://unify.light-ai.top/">SenseNova-Studio</a></li>
+    </ul>
+    <h3 class="mt">本页图表</h3>
+    <ul>
+      <li><code>assets/fig3-architecture-u1.5.jpg</code> — 技术报告 Figure 3 + Table 1</li>
+      <li><code>assets/fig4-posttraining.jpg</code> — 技术报告 Figure 4（多专家 RL + MOPD）</li>
+      <li><code>assets/fig5-data-corpus.jpg</code> — 技术报告 Figure 5（训练语料构成）</li>
+      <li><code>assets/fig1-showcases-infographic-human.jpg</code>、<code>assets/fig2-showcases-editing-multiref.jpg</code> — 技术报告 Figure 1 / 2（官方 showcase）</li>
+      <li><code>assets/u1.5_radial.webp</code>、<code>assets/u1.5_combined.webp</code>、<code>assets/u15_perform_vs_speed_6bench.png</code> — 仓库官方基准图与性能–速度曲线</li>
+    </ul>
+    <h3 class="mt">引用</h3>
+    <pre><code>@article{sensenova2026sensenovau1.5,
+  title   = {SenseNova-U1.5: Towards Native Unified Visual Intelligence},
+  author  = {Diao, Haiwen and Wang, Jiahao and Ding, Chenjing and Deng, Hanming and
+             Chen, Jiangnan and Zhang, Ruixi and Wang, Ruohui and Tong, Wenwen and
+             Fan, Xiangyu and Wang, Yubo and others},
+  journal = {arXiv preprint arXiv:2609.11929},
+  year    = {2026}
+}</code></pre>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <h4>SenseNova-U1.5 调研笔记</h4>
+    <div class="ref">· 代码与文档：<a href="https://github.com/OpenSenseNova/SenseNova-U1">OpenSenseNova/SenseNova-U1</a>（快照 <code>main</code>，2026-09-14 提交）</div>
+    <div class="ref">· 权重：<a href="https://huggingface.co/sensenova/SenseNova-U1.5-8B-MoT">sensenova/SenseNova-U1.5-8B-MoT</a>（Apache-2.0）· 报告：<a href="https://github.com/OpenSenseNova/SenseNova-U1/blob/main/docs/pdf/SenseNOVA_U1_5.pdf">docs/pdf/SenseNOVA_U1_5.pdf</a></div>
+    <div class="ref">· 架构：<a href="https://huggingface.co/blog/sensenova/neo-unify">NEO-unify</a> · 体验：<a href="https://unify.light-ai.top/">SenseNova-Studio</a></div>
+    <div class="note">※ 本页依据 SenseNova-U1.5 技术报告（35 页）、官方 GitHub 仓库（README / docs / examples / training）与 Hugging Face 模型卡通读整理，快照 2026-09-18。所有基准数字均取自官方材料，未做独立复现；表格中个别列头在 PDF 文本抽取中不完整，已按报告正文结论表述并标注。图片版权归 SenseNova / SenseTime 及原作者所有。</div>
+  </div>
+</footer>
+
+<script>
+  const bar = document.getElementById('progress');
+  addEventListener('scroll', () => {
+    const h = document.documentElement;
+    bar.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  }, {passive:true});
+
+  const links = document.querySelectorAll('nav a[data-spy]');
+  const map = {};
+  links.forEach(a => map[a.getAttribute('href').slice(1)] = a);
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(a => a.classList.remove('active'));
+        const el = map[e.target.id];
+        if (el) el.classList.add('active');
+      }
+    });
+  }, {rootMargin:'-30% 0px -60% 0px'});
+  document.querySelectorAll('main section[id]').forEach(s => obs.observe(s));
+</script>
+
+</body>
+</html>
