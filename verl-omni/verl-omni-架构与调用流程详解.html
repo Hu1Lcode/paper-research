@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>verl-omni 架构与调用流程</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --font:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",ui-monospace,Consolas,"Liberation Mono",monospace;
+  --bg:#070b15; --bg2:#0a1020; --panel:#0e1626; --band:#0d1524; --bandline:#1c2843;
+  --card:#131e34; --card2:#16233c; --cardline:#26365a; --chip:#182741; --chipline:#2b3d63;
+  --mask:#0d1524; --edge:#3d5382; --text:#e9eef9; --text2:#c6d2e8; --muted:#93a2bd;
+  --accent:#5eead4; --accent2:#a78bfa; --warn:#fbbf24;
+}
+html.light{
+  --bg:#f5f7fc; --bg2:#eef2f9; --panel:#ffffff; --band:#f0f4fb; --bandline:#dbe3f1;
+  --card:#ffffff; --card2:#f6f9ff; --cardline:#cfd9ea; --chip:#eef3fc; --chipline:#d5dfef;
+  --mask:#f0f4fb; --edge:#8ba0c2; --text:#0d1729; --text2:#23334d; --muted:#5b6b86;
+  --accent:#0f766e; --accent2:#6d28d9; --warn:#b45309;
+}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1200px 520px at 12% -10%, rgba(94,234,212,.10), transparent 60%),
+    radial-gradient(1000px 480px at 92% -6%, rgba(167,139,250,.12), transparent 62%),
+    var(--bg);
+  color:var(--text); font-family:var(--font); font-size:15px; line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1580px;margin:0 auto;padding:40px 30px 72px}
+.hero{padding-bottom:26px;border-bottom:1px solid var(--bandline);position:relative}
+.kicker{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-size:36px;line-height:1.2;margin:12px 0 12px;letter-spacing:-.015em;font-weight:750}
+.lede{max-width:1080px;color:var(--muted);font-size:15.2px;margin:0}
+.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.tag{font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--cardline);
+     background:var(--card);color:var(--text2);font-family:var(--mono)}
+.meta{margin-top:16px;display:flex;flex-direction:column;gap:6px;font-family:var(--mono);
+      font-size:12.3px;color:var(--muted);line-height:1.55}
+.meta .row{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.meta .k{color:var(--text2);opacity:.7;min-width:66px}
+.meta b{color:var(--accent);font-weight:650}
+.meta code{color:var(--text2);font-size:12px}
+#theme{position:absolute;right:0;top:6px;font-size:12.5px;padding:8px 14px;border-radius:10px;
+     border:1px solid var(--cardline);background:var(--card);color:var(--text2);cursor:pointer;font-family:var(--font)}
+#theme:hover{border-color:var(--accent);color:var(--accent)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;margin:30px 0 8px}
+.card{background:var(--card);border:1px solid var(--cardline);border-radius:16px;padding:20px 22px}
+.card h3{margin:0 0 8px;font-size:14.5px;letter-spacing:.01em}
+.card h3 .n{display:inline-block;min-width:22px;height:22px;line-height:22px;text-align:center;
+  border-radius:6px;background:rgba(94,234,212,.14);color:var(--accent);font-size:11.5px;margin-right:9px;font-family:var(--mono)}
+.card p{margin:0;color:var(--muted);font-size:13.4px;line-height:1.72}
+.card p b{color:var(--text2);font-weight:600}
+code,.mono{font-family:var(--mono)}
+.tabs{display:flex;gap:6px;margin:38px 0 0;border-bottom:1px solid var(--bandline);flex-wrap:wrap}
+.tab{appearance:none;border:1px solid transparent;border-bottom:none;background:transparent;color:var(--muted);
+  font-family:var(--font);font-size:14px;padding:11px 18px;border-radius:12px 12px 0 0;cursor:pointer;font-weight:600}
+.tab:hover{color:var(--text2)}
+.tab[aria-selected="true"]{color:var(--text);background:var(--panel);border-color:var(--bandline);border-bottom-color:var(--panel);margin-bottom:-1px}
+.panel{display:none;padding-top:22px}
+.panel.on{display:block}
+.legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:0 0 12px;font-size:12.2px;color:var(--muted)}
+.legend i{display:inline-block;width:26px;height:0;border-top:2px solid var(--edge);margin-right:7px;vertical-align:middle;border-radius:2px}
+.legend i.a{border-top-color:var(--accent)}
+.legend i.d{border-top-color:var(--accent2);border-top-style:dashed}
+.legend i.f{border-top-color:var(--cardline);border-top-style:dashed}
+.canvas{background:var(--panel);border:1px solid var(--bandline);border-radius:18px;padding:10px 12px 6px;overflow-x:auto;overflow-y:hidden}
+.canvas svg{display:block;width:100%;min-width:1180px;height:auto}
+.cap{color:var(--muted);font-size:12.6px;margin:12px 2px 0}
+h2.sec{font-size:19px;margin:44px 0 14px;letter-spacing:-.01em;display:flex;align-items:center;gap:12px}
+h2.sec::after{content:"";flex:1;height:1px;background:var(--bandline)}
+table{width:100%;border-collapse:collapse;font-size:13.2px;background:var(--card);
+  border:1px solid var(--cardline);border-radius:14px;overflow:hidden}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--cardline);vertical-align:top}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--card2);font-weight:700}
+tr:last-child td{border-bottom:none}
+td code{font-size:12.2px;color:var(--accent);background:rgba(94,234,212,.08);padding:1px 6px;border-radius:5px}
+html.light td code{background:rgba(15,118,110,.08)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px}
+@media (max-width:1100px){.two{grid-template-columns:1fr}}
+footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--bandline);color:var(--muted);font-size:12.6px}
+footer code{color:var(--text2);font-size:12px}
+.note-inline{color:var(--muted);font-size:12.8px;margin:10px 2px 0}
+
+svg text{font-family:var(--font)}
+svg .mono{font-family:var(--mono)}
+.band{fill:var(--band);stroke:var(--bandline);stroke-width:1}
+.node{fill:var(--card);stroke:var(--cardline);stroke-width:1.15}
+.node.key{fill:var(--card2);stroke:var(--accent);stroke-opacity:.55;stroke-width:1.4}
+.chip{fill:var(--chip);stroke:var(--chipline);stroke-width:1}
+.note{fill:var(--panel);stroke:var(--cardline);stroke-width:1;stroke-dasharray:5 4}
+.t{fill:var(--text);font-weight:650}
+.s{fill:var(--muted);font-weight:400}
+.bandlabel{fill:var(--muted);letter-spacing:.14em;font-weight:700}
+.lbl{fill:var(--text2);font-weight:500}
+.mask{fill:var(--mask);opacity:.94}
+.div{fill:none;stroke:var(--cardline);stroke-width:1;opacity:.85}
+.e{fill:none;stroke:var(--edge);stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+.e.dash{stroke-dasharray:6 5}
+.life{fill:none;stroke:var(--cardline);stroke-width:1.2;stroke-dasharray:3 6}
+.head{fill:var(--card2);stroke:var(--cardline);stroke-width:1.2}
+.frame{fill:none;stroke:var(--accent);stroke-opacity:.35;stroke-width:1.3;stroke-dasharray:7 6}
+.phase{fill:var(--chip);stroke:var(--chipline);stroke-width:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <button id="theme" type="button">浅色模式</button>
+  <div class="kicker">verl-omni · V1 扩散 / 全模态 RL</div>
+  <h1>verl-omni 架构与调用流程</h1>
+  <p class="lede">在固定版本的上游依赖之上做的一层扩展：复用 verl 的 Ray 执行、WorkerGroup、AgentLoopManager、
+    CheckpointEngine 与 Hydra 配置，复用 vLLM-Omni 的推理引擎与扩散 pipeline，自研扩散 / 全模态 RL 的 V1
+    trainer、worker、diffusion agent loop、reward loop，以及按 <code>(architecture, algorithm)</code> 注册的
+    pipeline 适配器。核心是一台通用的「采样 → 打分 → 优势 → 更新 → 同步权重」机器，具体模型只是插在注册点上的适配器。</p>
+  <div class="meta">
+    <div class="row"><span class="k">分析基线</span><span>verl-project/verl-omni ·
+      <b>main @ 1d5dc7a</b>（<code>v0.3.0rc1-45-g1d5dc7a</code>，2026-10-19）· 包版本 <b>0.3.0</b></span></div>
+    <div class="row"><span class="k">上游依赖</span><span>verl @ <code>fefb080</code> ·
+      vllm-omni @ <code>12e9280</code>（<code>pyproject.toml</code> 固定的 commit）</span></div>
+    <div class="row"><span class="k">示例配置</span><span><code>examples/flowgrpo_trainer/minimax_h3/run_minimax_h3_fl2va_lora_v1_npu.sh</code></span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">示例脚本 run_minimax_h3_fl2va_lora_v1_npu.sh</span>
+    <span class="tag">MiniMax-H3 · FL2VA</span>
+    <span class="tag">FlowGRPO</span>
+    <span class="tag">LoRA r=64 / α=128</span>
+    <span class="tag">Ascend NPU ×16</span>
+    <span class="tag">V1 sync trainer</span>
+  </div>
+</header>
+
+<section class="cards">
+  <div class="card"><h3><span class="n">1</span>一层扩展，不是 fork</h3>
+    <p><b>verl-omni ≠ verl / vllm-omni 的 fork</b>：不改上游，只在其上加扩展层。代码分工是硬约束——
+      <code>trainer/</code>、<code>workers/</code>、<code>agent_loop/</code> 保持模型 / 算法无关，模型特有逻辑全部收进
+      <code>pipelines/&lt;model&gt;_&lt;algo&gt;/</code>。</p></div>
+  <div class="card"><h3><span class="n">2</span>V1 的三个结构性改变</h3>
+    <p>① 用 <b>TransferQueue</b>（分布式 KV + 按 key 拉取）替代 v0 的 Ray RPC 传 <code>DataProto</code>；
+      ② <b>采样与训练解耦</b>：agent loop worker 是 CPU Ray actor，FSDP2 在另一组 NPU 上；
+      ③ <b>ActorRolloutRefWorker 共置</b> actor / rollout / ref / checkpoint engine，LoRA 模式下 ref 直接复用 actor 的 base 权重。</p></div>
+  <div class="card"><h3><span class="n">3</span>流水：训练上一步的同时生成下一步</h3>
+    <p><code>_submit_batch_to_rollout</code> 在 <code>_sample_batch</code> 之前异步提交下一批 prompt，因此
+      <code>gen</code> 与 <code>update_actor</code> 重叠；reward 走 streaming 路径，每条样本生成完立即打分，
+      不阻塞整批。</p></div>
+</section>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-target="p-arch">① 分层架构与组件关系</button>
+  <button class="tab" role="tab" aria-selected="false" data-target="p-seq">② 初始化 + 单步调用时序</button>
+  <button class="tab" role="tab" aria-selected="false" data-target="p-data">③ 一个训练步的数据流</button>
+</nav>
+
+<section class="panel on" id="p-arch" role="tabpanel">
+  <div class="legend">
+    <span><i></i>主调用链</span>
+    <span><i class="a"></i>异步 / 跨进程调用（agent loop、HTTP、权重同步）</span>
+    <span><i class="d"></i>数据写入 TransferQueue</span>
+    <span>节点顶部灰字 = 源码位置（标「上游」者位于 site-packages 的 verl / transfer_queue）</span>
+  </div>
+  <div class="canvas">
+<svg viewBox="0 0 1500 1125" role="img" aria-label="verl-omni 分层架构">
+<defs><marker id="a-arrow" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--edge)"/></marker><marker id="a-arrowA" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--accent)"/></marker><marker id="a-arrowD" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--accent2)"/></marker></defs>
+<rect class="band" x="90.0" y="56.0" width="1320.0" height="121.0" rx="16.0"/>
+<text class="bandlabel" x="112.0" y="81.0" font-size="10.5">启动层 · SHELL → HYDRA → RAY</text>
+<rect class="node" x="120.0" y="98.0" width="300.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="270.0" y="115.5" text-anchor="middle" font-size="9.2">examples/flowgrpo_trainer/minimax_h3/run_*.sh</text>
+<path class="div" d="M136.0,120.5 L404.0,120.5"/>
+<text class="t mono" x="270.0" y="135.0" text-anchor="middle" font-size="13.2">run_*.sh</text>
+<text class="s" x="270.0" y="149.0" text-anchor="middle" font-size="10.5">Hydra overrides 组合 diffusion_trainer.yaml</text>
+<rect class="node" x="478.0" y="98.0" width="330.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="643.0" y="115.5" text-anchor="middle" font-size="9.2">verl_omni/trainer/main_diffusion_v1.py</text>
+<path class="div" d="M494.0,120.5 L792.0,120.5"/>
+<text class="t mono" x="643.0" y="135.0" text-anchor="middle" font-size="13.2">main_diffusion_v1.py</text>
+<text class="s" x="643.0" y="149.0" text-anchor="middle" font-size="10.5">auto_set_device → validate → run_diffusion_v1</text>
+<rect class="node" x="866.0" y="98.0" width="384.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="1058.0" y="115.5" text-anchor="middle" font-size="9.2">verl_omni/trainer/main_diffusion_v1.py:34</text>
+<path class="div" d="M882.0,120.5 L1234.0,120.5"/>
+<text class="t mono" x="1058.0" y="135.0" text-anchor="middle" font-size="13.2">run_diffusion_v1()</text>
+<text class="s" x="1058.0" y="149.0" text-anchor="middle" font-size="10.5">ray.init(runtime_env) · transfer_queue.enable=True</text>
+<path class="e" d="M426.0,130.0 L472.0,130.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M814.0,130.0 L860.0,130.0" marker-end="url(#a-arrow)"/>
+<rect class="band" x="90.0" y="193.0" width="1320.0" height="144.0" rx="16.0"/>
+<text class="bandlabel" x="112.0" y="218.0" font-size="10.5">编排层 · RAY ACTOR · 1 CPU</text>
+<rect class="node key" x="120.0" y="233.0" width="1260.0" height="88.0" rx="11.0"/>
+<text class="s mono" x="750.0" y="250.5" text-anchor="middle" font-size="9.2">verl_omni/trainer/main_diffusion_v1.py:110</text>
+<path class="div" d="M136.0,255.5 L1364.0,255.5"/>
+<text class="t mono" x="750.0" y="270.0" text-anchor="middle" font-size="15.0">DiffusionTaskRunnerV1</text>
+<rect class="chip" x="309.0" y="283.0" width="100.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="359.0" y="300.0" text-anchor="middle" font-size="10.4">tq.init()</text>
+<rect class="chip" x="423.0" y="283.0" width="190.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="518.0" y="300.0" text-anchor="middle" font-size="10.4">trainer.init() → _setup()</text>
+<rect class="chip" x="627.0" y="283.0" width="300.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="777.0" y="300.0" text-anchor="middle" font-size="10.4">create_diffusion_agent_loop_manager()</text>
+<rect class="chip" x="941.0" y="283.0" width="250.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="1066.0" y="300.0" text-anchor="middle" font-size="10.4">trainer.fit(agent_loop_manager)</text>
+<rect class="band" x="90.0" y="353.0" width="1320.0" height="160.0" rx="16.0"/>
+<text class="bandlabel" x="112.0" y="378.0" font-size="10.5">训练驱动层 · FIT 主循环</text>
+<rect class="node key" x="120.0" y="393.0" width="1260.0" height="104.0" rx="11.0"/>
+<text class="s mono" x="750.0" y="410.5" text-anchor="middle" font-size="9.2">verl_omni/trainer/diffusion/v1/trainer_sync.py:44</text>
+<path class="div" d="M136.0,415.5 L1364.0,415.5"/>
+<text class="t mono" x="750.0" y="430.0" text-anchor="middle" font-size="15.0">PolicyGradientDiffusionTrainerV1Sync</text>
+<rect class="chip" x="366.0" y="443.0" width="64.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="398.0" y="460.0" text-anchor="middle" font-size="10.6">feed</text>
+<rect class="chip" x="452.0" y="443.0" width="56.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="480.0" y="460.0" text-anchor="middle" font-size="10.6">gen</text>
+<rect class="chip" x="530.0" y="443.0" width="76.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="568.0" y="460.0" text-anchor="middle" font-size="10.6">reward</text>
+<rect class="chip" x="628.0" y="443.0" width="122.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="689.0" y="460.0" text-anchor="middle" font-size="10.6">old_log_prob</text>
+<rect class="chip" x="772.0" y="443.0" width="52.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="798.0" y="460.0" text-anchor="middle" font-size="10.6">adv</text>
+<rect class="chip" x="846.0" y="443.0" width="124.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="908.0" y="460.0" text-anchor="middle" font-size="10.6">update_actor</text>
+<rect class="chip" x="992.0" y="443.0" width="142.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="1063.0" y="460.0" text-anchor="middle" font-size="10.6">update_weights</text>
+<path class="e" d="M432.0,456.0 L450.0,456.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M510.0,456.0 L528.0,456.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M608.0,456.0 L626.0,456.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M752.0,456.0 L770.0,456.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M826.0,456.0 L844.0,456.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M972.0,456.0 L990.0,456.0" marker-end="url(#a-arrow)"/>
+<text class="s" x="750" y="484" text-anchor="middle" font-size="10.4">on_step_begin → step() → save_checkpoint(每 10 步) → on_step_end → _validate(每 10 步) → kv_clear → global_steps++</text>
+<rect class="band" x="90.0" y="529.0" width="640.0" height="390.0" rx="16.0"/>
+<text class="bandlabel" x="112.0" y="554.0" font-size="10.5">采样侧 · CPU RAY ACTORS</text>
+<rect class="band" x="770.0" y="529.0" width="640.0" height="390.0" rx="16.0"/>
+<text class="bandlabel" x="792.0" y="554.0" font-size="10.5">训练侧 · RAYWORKERGROUP · NPU×16</text>
+<rect class="node" x="110.0" y="573.0" width="600.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="410.0" y="590.5" text-anchor="middle" font-size="9.2">verl/trainer/ppo/v1/agent_loop_tq.py:230 · 上游</text>
+<path class="div" d="M126.0,595.5 L694.0,595.5"/>
+<text class="t mono" x="410.0" y="610.0" text-anchor="middle" font-size="13.2">AgentLoopManagerTQ</text>
+<text class="s" x="410.0" y="624.0" text-anchor="middle" font-size="10.5">拉起 4 个 DiffusionAgentLoopWorkerTQ</text>
+<rect class="node" x="110.0" y="662.0" width="600.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="410.0" y="679.5" text-anchor="middle" font-size="9.2">verl_omni/agent_loop/diffusion_agent_loop_tq.py:41</text>
+<path class="div" d="M126.0,684.5 L694.0,684.5"/>
+<text class="t mono" x="410.0" y="699.0" text-anchor="middle" font-size="13.2">DiffusionAgentLoopWorkerTQ ×4</text>
+<text class="s" x="410.0" y="713.0" text-anchor="middle" font-size="10.5">tokenize · HTTP 生成 · 收集 artifact · 写 TQ</text>
+<rect class="node" x="110.0" y="751.0" width="600.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="410.0" y="768.5" text-anchor="middle" font-size="9.2">verl_omni/pipelines/minimax_h3_diffusion_nft/agent_loop.py:28</text>
+<path class="div" d="M126.0,773.5 L694.0,773.5"/>
+<text class="t mono" x="410.0" y="788.0" text-anchor="middle" font-size="13.2">MiniMaxH3DiffusionSingleTurnAgentLoop</text>
+<text class="s" x="410.0" y="802.0" text-anchor="middle" font-size="10.5">FL2VA 参考图 / 音频 · token-ID native tokenize</text>
+<rect class="node" x="110.0" y="840.0" width="290.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="255.0" y="857.5" text-anchor="middle" font-size="9.2">verl/experimental/reward_loop/reward_loop.py:93 · 上游</text>
+<path class="div" d="M126.0,862.5 L384.0,862.5"/>
+<text class="t mono" x="255.0" y="877.0" text-anchor="middle" font-size="13.2">reward loop worker</text>
+<text class="s mono" x="255.0" y="891.0" text-anchor="middle" font-size="10.5">CLAP(npu:0) + ImageBind(npu:1)</text>
+<rect class="node" x="415.0" y="840.0" width="295.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="562.5" y="857.5" text-anchor="middle" font-size="9.2">verl/workers/rollout/llm_server.py:197 · 上游</text>
+<path class="div" d="M431.0,862.5 L694.0,862.5"/>
+<text class="t mono" x="562.5" y="877.0" text-anchor="middle" font-size="13.2">LLMServerClient</text>
+<text class="s" x="562.5" y="891.0" text-anchor="middle" font-size="10.5">HTTP /generate · 收集 artifacts</text>
+<rect class="node" x="790.0" y="573.0" width="600.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="1090.0" y="590.5" text-anchor="middle" font-size="9.2">verl_omni/workers/engine_workers.py:573</text>
+<path class="div" d="M806.0,595.5 L1374.0,595.5"/>
+<text class="t mono" x="1090.0" y="610.0" text-anchor="middle" font-size="13.2">ActorRolloutRefWorker ×16</text>
+<text class="s" x="1090.0" y="624.0" text-anchor="middle" font-size="10.5">actor · rollout · ref(lora) · checkpoint engine 共置</text>
+<rect class="node" x="790.0" y="662.0" width="600.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="1090.0" y="679.5" text-anchor="middle" font-size="9.2">verl_omni/workers/engine_workers.py:115</text>
+<path class="div" d="M806.0,684.5 L1374.0,684.5"/>
+<text class="t mono" x="1090.0" y="699.0" text-anchor="middle" font-size="13.2">TrainingWorker</text>
+<text class="s" x="1090.0" y="713.0" text-anchor="middle" font-size="10.5">PPODiffusersFSDPEngine · engine/fsdp/diffusers_impl.py:1130</text>
+<rect class="node" x="790.0" y="751.0" width="600.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="1090.0" y="768.5" text-anchor="middle" font-size="9.2">verl/checkpoint_engine/base.py:116 · 上游</text>
+<path class="div" d="M806.0,773.5 L1374.0,773.5"/>
+<text class="t mono" x="1090.0" y="788.0" text-anchor="middle" font-size="13.2">CheckpointEngine</text>
+<text class="s" x="1090.0" y="802.0" text-anchor="middle" font-size="10.5">LoRA delta → vLLM-Omni · update_weights(step)</text>
+<rect class="node" x="790.0" y="840.0" width="600.0" height="63.0" rx="11.0"/>
+<text class="s mono" x="1090.0" y="857.5" text-anchor="middle" font-size="9.2">verl_omni/pipelines/minimax_h3_flow_grpo/vllm_omni_rollout_adapter.py:84</text>
+<path class="div" d="M806.0,862.5 L1374.0,862.5"/>
+<text class="t mono" x="1090.0" y="877.0" text-anchor="middle" font-size="13.2">vLLM-Omni rollout engine · 4 replica × TP=4</text>
+<text class="s mono" x="1090.0" y="891.0" text-anchor="middle" font-size="10.5">MiniMaxH3PipelineWithLogProb @ (architecture, algorithm)</text>
+<rect class="band" x="90.0" y="943.0" width="1320.0" height="156.0" rx="16.0"/>
+<text class="bandlabel" x="112.0" y="968.0" font-size="10.5">数据总线 · TRANSFERQUEUE</text>
+<rect class="node key" x="120.0" y="983.0" width="1260.0" height="92.0" rx="11.0"/>
+<text class="s mono" x="750.0" y="1000.5" text-anchor="middle" font-size="9.2">transfer_queue/controller.py · client.py · metadata.py</text>
+<path class="div" d="M136.0,1005.5 L1364.0,1005.5"/>
+<text class="t mono" x="750.0" y="1020.0" text-anchor="middle" font-size="14.0">TransferQueue：partition_id = train / val</text>
+<rect class="chip" x="230.0" y="1033.0" width="258.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="359.0" y="1050.0" text-anchor="middle" font-size="10.4">kv_batch_put(uid, status=pending)</text>
+<rect class="chip" x="508.0" y="1033.0" width="262.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="639.0" y="1050.0" text-anchor="middle" font-size="10.4">trajectory rows: status=success</text>
+<rect class="chip" x="790.0" y="1033.0" width="306.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="943.0" y="1050.0" text-anchor="middle" font-size="10.4">ReplayBuffer.sample() → KVBatchMeta</text>
+<rect class="chip" x="1116.0" y="1033.0" width="140.0" height="26.0" rx="7.0"/>
+<text class="t mono" x="1186.0" y="1050.0" text-anchor="middle" font-size="10.4">kv_clear(keys)</text>
+<path class="e" d="M750.0,327.0 L750.0,387.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M410.0,503.0 L410.0,567.0" marker-end="url(#a-arrowA)"/>
+<rect class="mask" x="418.0" y="511.0" width="211.6" height="16.8" rx="4"/>
+<text class="lbl" x="424.0" y="522.0" font-size="10.4">generate_sequences()（异步，不阻塞）</text>
+<path class="e" d="M1090.0,503.0 L1090.0,567.0" marker-end="url(#a-arrow)"/>
+<rect class="mask" x="1098.0" y="511.0" width="190.5" height="16.8" rx="4"/>
+<text class="lbl" x="1104.0" y="522.0" font-size="10.4">infer_actor_batch / update_actor</text>
+<path class="e" d="M410.0,642.0 L410.0,656.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M410.0,731.0 L410.0,745.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M250.0,820.0 L250.0,834.0" marker-end="url(#a-arrowA)"/>
+<rect class="mask" x="258.0" y="822.0" width="108.1" height="16.8" rx="4"/>
+<text class="lbl" x="264.0" y="833.0" font-size="10.4">_compute_score()</text>
+<path class="e" d="M565.0,820.0 L565.0,834.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M716.0,872.0 L784.0,872.0" marker-end="url(#a-arrowA)"/>
+<rect class="mask" x="727.3" y="853.0" width="41.5" height="16.8" rx="4"/>
+<text class="lbl" x="748.0" y="864.0" text-anchor="middle" font-size="10.4">HTTP</text>
+<path class="e" d="M1090.0,642.0 L1090.0,656.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M1090.0,731.0 L1090.0,745.0" marker-end="url(#a-arrow)"/>
+<path class="e" d="M1090.0,820.0 L1090.0,834.0" marker-end="url(#a-arrowA)"/>
+<rect class="mask" x="1098.0" y="822.0" width="70.1" height="16.8" rx="4"/>
+<text class="lbl" x="1104.0" y="833.0" font-size="10.4">LoRA delta</text>
+<path class="e" d="M712.0,694.0 L750.0,694.0 L750.0,977.0" marker-end="url(#a-arrowD)"/>
+<text class="lbl" x="764.0" y="836.0" text-anchor="middle" font-size="10.0" transform="rotate(-90 764.0 836.0)">写回轨迹 status=success</text>
+<path class="e" d="M360.0,909.0 L360.0,977.0" marker-end="url(#a-arrowD)"/>
+<rect class="mask" x="368.0" y="921.0" width="68.1" height="16.8" rx="4"/>
+<text class="lbl" x="374.0" y="932.0" font-size="10.4">rm_scores</text>
+<path class="e dash" d="M114.0,445.0 L60.0,445.0 L60.0,1029.0 L114.0,1029.0" marker-end="url(#a-arrowD)"/>
+<text class="lbl" x="52.0" y="737.0" text-anchor="middle" font-size="10.0" transform="rotate(-90 52.0 737.0)">put / sample</text>
+</svg>
+  </div>
+  <p class="cap">五层自上而下：启动层（shell + Hydra + ray.init）→ 编排层（1 CPU 的 DiffusionTaskRunnerV1）→
+    训练驱动层（PolicyGradientDiffusionTrainerV1Sync 的 fit 主循环）→ 采样侧 / 训练侧（解耦的两组 Ray actor）→
+    数据总线 TransferQueue。左侧虚线是 trainer 与 TQ 之间的 put / sample；右侧虚线是 rollout 轨迹的写回。每个组件框顶部那行灰字标出它所在的文件与行号（路径相对仓库根 /home/wjh/verl-omni）。</p>
+</section>
+
+<section class="panel" id="p-seq" role="tabpanel">
+  <div class="legend">
+    <span><i class="a"></i>调用方向（请求 / 触发）</span>
+    <span><i></i>返回 / 回写</span>
+    <span><i class="f"></i>每步循环边界</span>
+  </div>
+  <div class="canvas">
+<svg viewBox="0 0 1500 1410" role="img" aria-label="verl-omni 单步调用时序">
+<defs><marker id="b-arrow" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--edge)"/></marker><marker id="b-arrowA" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--accent)"/></marker><marker id="b-arrowD" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--accent2)"/></marker></defs>
+<path class="life" d="M180.0,112 L180.0,1334.0"/>
+<rect class="head" x="88.0" y="42.0" width="184.0" height="66.0" rx="12.0"/>
+<text class="t mono" x="180.0" y="70.0" text-anchor="middle" font-size="10.6">main_diffusion_v1.py</text>
+<text class="s" x="180.0" y="90.0" text-anchor="middle" font-size="9.8">DiffusionTaskRunnerV1</text>
+<path class="life" d="M380.0,112 L380.0,1334.0"/>
+<rect class="head" x="288.0" y="42.0" width="184.0" height="66.0" rx="12.0"/>
+<text class="t mono" x="380.0" y="70.0" text-anchor="middle" font-size="10.6">PolicyGradientDiffusion</text>
+<text class="s" x="380.0" y="90.0" text-anchor="middle" font-size="9.8">TrainerV1Sync · fit()</text>
+<path class="life" d="M580.0,112 L580.0,1334.0"/>
+<rect class="head" x="488.0" y="42.0" width="184.0" height="66.0" rx="12.0"/>
+<text class="t mono" x="580.0" y="70.0" text-anchor="middle" font-size="10.6">TransferQueue</text>
+<text class="s" x="580.0" y="90.0" text-anchor="middle" font-size="9.8">partition: train / val</text>
+<path class="life" d="M780.0,112 L780.0,1334.0"/>
+<rect class="head" x="688.0" y="42.0" width="184.0" height="66.0" rx="12.0"/>
+<text class="t mono" x="780.0" y="70.0" text-anchor="middle" font-size="10.6">AgentLoopManagerTQ</text>
+<text class="s" x="780.0" y="90.0" text-anchor="middle" font-size="9.8">worker ×4</text>
+<path class="life" d="M980.0,112 L980.0,1334.0"/>
+<rect class="head" x="888.0" y="42.0" width="184.0" height="66.0" rx="12.0"/>
+<text class="t mono" x="980.0" y="70.0" text-anchor="middle" font-size="10.6">vLLM-Omni replica</text>
+<text class="s" x="980.0" y="90.0" text-anchor="middle" font-size="9.8">TP=4 · MiniMax-H3</text>
+<path class="life" d="M1180.0,112 L1180.0,1334.0"/>
+<rect class="head" x="1088.0" y="42.0" width="184.0" height="66.0" rx="12.0"/>
+<text class="t mono" x="1180.0" y="70.0" text-anchor="middle" font-size="10.6">Reward workers</text>
+<text class="s" x="1180.0" y="90.0" text-anchor="middle" font-size="9.8">CLAP + ImageBind</text>
+<path class="life" d="M1380.0,112 L1380.0,1334.0"/>
+<rect class="head" x="1288.0" y="42.0" width="184.0" height="66.0" rx="12.0"/>
+<text class="t mono" x="1380.0" y="70.0" text-anchor="middle" font-size="10.6">ActorRolloutRefWorker</text>
+<text class="s" x="1380.0" y="90.0" text-anchor="middle" font-size="9.8">FSDP2 + LoRA · NPU</text>
+<rect class="frame" x="78.0" y="550.0" width="1404.0" height="766.0" rx="14.0"/>
+<text class="bandlabel" x="96" y="576.0" font-size="10.5">每步训练循环 · fit() → step()</text>
+<rect class="phase" x="36.0" y="118.0" width="22.0" height="424.0" rx="8.0"/>
+<text class="lbl" x="47" y="330.0" text-anchor="middle" font-size="10" transform="rotate(-90 47 330.0)">初始化（一次性）</text>
+<rect class="phase" x="36.0" y="552.0" width="22.0" height="776.0" rx="8.0"/>
+<text class="lbl" x="47" y="939.0" text-anchor="middle" font-size="10" transform="rotate(-90 47 939.0)">每步循环</text>
+<rect class="note" x="194.0" y="137.0" width="460.0" height="30.0" rx="8.0"/>
+<text class="s" x="206.0" y="156.0" font-size="10.2">Hydra 组合 diffusion_trainer.yaml + overrides → ray.init(TRANSFER_QUEUE_ENABLE=1)</text>
+<path class="e" d="M190.0,198.0 L570.0,198.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="293.1" y="179.0" width="173.8" height="16.8" rx="4"/>
+<text class="lbl" x="380.0" y="190.0" text-anchor="middle" font-size="10.4">tq.init(config.transfer_queue)</text>
+<path class="e" d="M190.0,254.0 L370.0,254.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="208.4" y="235.0" width="143.3" height="16.8" rx="4"/>
+<text class="lbl" x="280.0" y="246.0" text-anchor="middle" font-size="10.4">trainer.init() → _setup()</text>
+<path class="e" d="M390.0,310.0 L1370.0,310.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="758.6" y="291.0" width="242.8" height="16.8" rx="4"/>
+<text class="lbl" x="880.0" y="302.0" text-anchor="middle" font-size="10.4">建 RayWorkerGroup（16 NPU）+ init_model()</text>
+<path class="e" d="M390.0,366.0 L1170.0,366.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="707.1" y="347.0" width="145.9" height="16.8" rx="4"/>
+<text class="lbl" x="780.0" y="358.0" text-anchor="middle" font-size="10.4">创建 reward loop manager</text>
+<rect class="note" x="394.0" y="407.0" width="460.0" height="30.0" rx="8.0"/>
+<text class="s" x="406.0" y="426.0" font-size="10.2">_load_checkpoint：actor / LoRA / optimizer / global_steps</text>
+<path class="e" d="M190.0,468.0 L770.0,468.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="332.9" y="449.0" width="294.3" height="16.8" rx="4"/>
+<text class="lbl" x="480.0" y="460.0" text-anchor="middle" font-size="10.4">create_diffusion_agent_loop_manager() → 4 个 worker</text>
+<path class="e" d="M390.0,524.0 L1370.0,524.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="715.3" y="505.0" width="329.3" height="16.8" rx="4"/>
+<text class="lbl" x="880.0" y="516.0" text-anchor="middle" font-size="10.4">on_init_end → update_weights(0)：初始 LoRA 推给 vLLM-Omni</text>
+<path class="e" d="M390.0,580.0 L570.0,580.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="372.0" y="561.0" width="216.0" height="16.8" rx="4"/>
+<text class="lbl" x="480.0" y="572.0" text-anchor="middle" font-size="10.4">kv_batch_put(prompt, status=pending)</text>
+<path class="e" d="M390.0,636.0 L770.0,636.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="453.8" y="617.0" width="252.4" height="16.8" rx="4"/>
+<text class="lbl" x="580.0" y="628.0" text-anchor="middle" font-size="10.4">generate_sequences() 异步提交（feed 下一步）</text>
+<path class="e" d="M790.0,692.0 L970.0,692.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="764.5" y="673.0" width="231.0" height="16.8" rx="4"/>
+<text class="lbl" x="880.0" y="684.0" text-anchor="middle" font-size="10.4">HTTP /generate：32 prompt × n=8 session</text>
+<path class="e" d="M970.0,748.0 L790.0,748.0" marker-end="url(#b-arrow)"/>
+<rect class="mask" x="775.2" y="729.0" width="209.5" height="16.8" rx="4"/>
+<text class="lbl" x="880.0" y="740.0" text-anchor="middle" font-size="10.4">artifacts + 每步 log-prob（CPS SDE）</text>
+<path class="e" d="M790.0,804.0 L1170.0,804.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="925.9" y="785.0" width="108.1" height="16.8" rx="4"/>
+<text class="lbl" x="980.0" y="796.0" text-anchor="middle" font-size="10.4">_compute_score()</text>
+<path class="e" d="M1170.0,860.0 L790.0,860.0" marker-end="url(#b-arrow)"/>
+<rect class="mask" x="888.8" y="841.0" width="182.5" height="16.8" rx="4"/>
+<text class="lbl" x="980.0" y="852.0" text-anchor="middle" font-size="10.4">rm_scores（流式：边生成边打分）</text>
+<path class="e" d="M770.0,916.0 L590.0,916.0" marker-end="url(#b-arrow)"/>
+<rect class="mask" x="537.1" y="897.0" width="285.8" height="16.8" rx="4"/>
+<text class="lbl" x="680.0" y="908.0" text-anchor="middle" font-size="10.4">写回轨迹 status=success（log_probs / extra_fields）</text>
+<path class="e" d="M390.0,972.0 L570.0,972.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="371.3" y="953.0" width="217.4" height="16.8" rx="4"/>
+<text class="lbl" x="480.0" y="964.0" text-anchor="middle" font-size="10.4">replay_buffer.sample() → KVBatchMeta</text>
+<path class="e" d="M390.0,1028.0 L1370.0,1028.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="778.8" y="1009.0" width="202.4" height="16.8" rx="4"/>
+<text class="lbl" x="880.0" y="1020.0" text-anchor="middle" font-size="10.4">infer_actor_batch() → old_log_probs</text>
+<rect class="note" x="394.0" y="1069.0" width="460.0" height="30.0" rx="8.0"/>
+<text class="s" x="406.0" y="1088.0" font-size="10.2">compute_flow_grpo_outcome_advantage（global_std=True）</text>
+<path class="e" d="M390.0,1130.0 L1370.0,1130.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="788.6" y="1111.0" width="182.8" height="16.8" rx="4"/>
+<text class="lbl" x="880.0" y="1122.0" text-anchor="middle" font-size="10.4">update_actor() → FlowGRPOLoss</text>
+<path class="e" d="M390.0,1186.0 L570.0,1186.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="325.7" y="1167.0" width="308.5" height="16.8" rx="4"/>
+<text class="lbl" x="480.0" y="1178.0" text-anchor="middle" font-size="10.4">put_dataproto_fields_to_tq(old_log_probs / advantages)</text>
+<path class="e" d="M390.0,1242.0 L570.0,1242.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="426.7" y="1223.0" width="106.7" height="16.8" rx="4"/>
+<text class="lbl" x="480.0" y="1234.0" text-anchor="middle" font-size="10.4">tq.kv_clear(keys)</text>
+<path class="e" d="M390.0,1298.0 L1370.0,1298.0" marker-end="url(#b-arrowA)"/>
+<rect class="mask" x="730.7" y="1279.0" width="298.6" height="16.8" rx="4"/>
+<text class="lbl" x="880.0" y="1290.0" text-anchor="middle" font-size="10.4">on_step_end：sleep_replicas() → update_weights(step)</text>
+</svg>
+  </div>
+  <p class="cap">上半段是一次性初始化（Ray、worker group、vLLM-Omni、agent loop manager、初始权重同步）；
+    虚线框内是每一步训练循环：feed（提交下一批）→ gen（agent loop + vLLM-Omni + reward）→ train（old_log_prob → advantage → update_actor）→ update_weights。</p>
+</section>
+
+<section class="panel" id="p-data" role="tabpanel">
+  <div class="legend">
+    <span>橙色节点：数据在 TransferQueue 中的两次落地</span>
+  </div>
+  <div class="canvas">
+<svg viewBox="0 0 1500 590" role="img" aria-label="verl-omni 数据流">
+<defs><marker id="c-arrow" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--edge)"/></marker><marker id="c-arrowA" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--accent)"/></marker><marker id="c-arrowD" viewBox="0 0 10 10" refX="8.6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.6 L9.6,5 L0,9.4 z" fill="var(--accent2)"/></marker></defs>
+<rect class="node" x="60.0" y="86.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t" x="210.0" y="137.0" text-anchor="middle" font-size="12.6">prompt · parquet</text>
+<text class="s" x="210.0" y="152.4" text-anchor="middle" font-size="10.2">DataLoader（batch=32）</text>
+<rect class="node" x="400.0" y="86.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t mono" x="550.0" y="137.0" text-anchor="middle" font-size="12.6">TensorDict</text>
+<text class="s" x="550.0" y="152.4" text-anchor="middle" font-size="10.2">uid · prompt · image · extra_info</text>
+<rect class="node key" x="740.0" y="86.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t mono" x="890.0" y="129.8" text-anchor="middle" font-size="12.6">TQ · train · pending</text>
+<text class="s" x="890.0" y="145.2" text-anchor="middle" font-size="10.2">kv_batch_put：按 uid 写入</text>
+<text class="s" x="890.0" y="159.7" text-anchor="middle" font-size="10.2">tag: is_prompt / status=pending</text>
+<rect class="node" x="1080.0" y="86.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t mono" x="1230.0" y="129.8" text-anchor="middle" font-size="12.6">DiffusionAgentLoopWorkerTQ ×4</text>
+<text class="s" x="1230.0" y="145.2" text-anchor="middle" font-size="10.2">32 prompt × n=8 session</text>
+<text class="s" x="1230.0" y="159.7" text-anchor="middle" font-size="10.2">H3 single-turn agent loop</text>
+<rect class="node" x="1080.0" y="246.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t" x="1230.0" y="289.8" text-anchor="middle" font-size="12.6">vLLM-Omni replica（TP=4）</text>
+<text class="s" x="1230.0" y="305.2" text-anchor="middle" font-size="10.2">MiniMaxH3PipelineWithLogProb</text>
+<text class="s" x="1230.0" y="319.7" text-anchor="middle" font-size="10.2">10 步视频+音频去噪 · CPS SDE</text>
+<rect class="node" x="740.0" y="246.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t" x="890.0" y="289.8" text-anchor="middle" font-size="12.6">reward worker（流式）</text>
+<text class="s" x="890.0" y="305.2" text-anchor="middle" font-size="10.2">MultiVisualRewardManager</text>
+<text class="s" x="890.0" y="319.7" text-anchor="middle" font-size="10.2">CLAP + ImageBind → weighted_sum</text>
+<rect class="node key" x="400.0" y="246.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t mono" x="550.0" y="289.8" text-anchor="middle" font-size="12.6">TQ · train · success</text>
+<text class="s" x="550.0" y="305.2" text-anchor="middle" font-size="10.2">responses · rollout_log_probs</text>
+<text class="s" x="550.0" y="319.7" text-anchor="middle" font-size="10.2">rm_scores · extra_fields</text>
+<rect class="node" x="60.0" y="246.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t mono" x="210.0" y="289.8" text-anchor="middle" font-size="12.6">ReplayBuffer.sample()</text>
+<text class="s" x="210.0" y="305.2" text-anchor="middle" font-size="10.2">按 global_steps 取 batch</text>
+<text class="s" x="210.0" y="319.7" text-anchor="middle" font-size="10.2">过滤 max_off_policy_threshold</text>
+<rect class="node" x="60.0" y="406.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t mono" x="210.0" y="449.8" text-anchor="middle" font-size="12.6">KVBatchMeta → DataProto</text>
+<text class="s" x="210.0" y="465.2" text-anchor="middle" font-size="10.2">diffusion_tq_batch_to_dataproto</text>
+<text class="s" x="210.0" y="479.7" text-anchor="middle" font-size="10.2">_balance_batch：补齐 + advantage 置零</text>
+<rect class="node" x="400.0" y="406.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t mono" x="550.0" y="449.8" text-anchor="middle" font-size="12.6">old_log_prob</text>
+<text class="s" x="550.0" y="465.2" text-anchor="middle" font-size="10.2">actor FSDP2 重放 transition</text>
+<text class="s" x="550.0" y="479.7" text-anchor="middle" font-size="10.2">作为 PPO ratio 的分母</text>
+<rect class="node" x="740.0" y="406.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t mono" x="890.0" y="449.8" text-anchor="middle" font-size="12.6">FlowGRPO advantage</text>
+<text class="s" x="890.0" y="465.2" text-anchor="middle" font-size="10.2">按 prompt 分组 · 组内减均值</text>
+<text class="s" x="890.0" y="479.7" text-anchor="middle" font-size="10.2">global_std=True 全局归一化</text>
+<rect class="node key" x="1080.0" y="406.0" width="300.0" height="108.0" rx="11.0"/>
+<text class="t" x="1230.0" y="449.8" text-anchor="middle" font-size="12.6">update_actor（LoRA）</text>
+<text class="s" x="1230.0" y="465.2" text-anchor="middle" font-size="10.2">FlowGRPOLoss · FSDP2 all-reduce</text>
+<text class="s" x="1230.0" y="479.7" text-anchor="middle" font-size="10.2">persist → TQ · LoRA delta → vLLM-Omni</text>
+<path class="e" d="M368.0,140.0 L392.0,140.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M708.0,140.0 L732.0,140.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M1048.0,140.0 L1072.0,140.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M1230.0,200.0 L1230.0,240.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M1072.0,300.0 L1048.0,300.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M732.0,300.0 L708.0,300.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M392.0,300.0 L368.0,300.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M210.0,360.0 L210.0,400.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M368.0,460.0 L392.0,460.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M708.0,460.0 L732.0,460.0" marker-end="url(#c-arrow)"/>
+<path class="e" d="M1048.0,460.0 L1072.0,460.0" marker-end="url(#c-arrow)"/>
+<rect class="note" x="60.0" y="540.0" width="1380.0" height="34.0" rx="10.0"/>
+<text class="s" x="750" y="562" text-anchor="middle" font-size="10.6">闭环：CheckpointEngine 把 LoRA 增量推给 vLLM-Omni，下一步 rollout 即使用新策略；TQ 中该批 key 由 kv_clear 清理</text>
+</svg>
+  </div>
+  <p class="cap">prompt 行以 <code>status=pending</code> 进入 TQ，轨迹行以 <code>status=success</code>
+    带着 <code>rollout_log_probs</code>、<code>rm_scores</code>、<code>extra_fields</code> 回来；训练消费完后
+    <code>kv_clear</code> 清理该批 key，LoRA 增量经 CheckpointEngine 回到推理侧，形成闭环。</p>
+</section>
+
+<h2 class="sec">关键机制</h2>
+<div class="two">
+  <div class="card"><h3>TransferQueue：V1 的数据中枢</h3>
+    <p>trainer 按 <code>uid</code> 把 prompt 行 <code>put</code> 进 <code>partition_id="train"</code>（验证用 <code>"val"</code>），
+      打 <code>status=pending</code>；agent loop 生成完一条轨迹就写回 <code>prompts</code> / <code>responses</code> /
+      <code>rm_scores</code> / <code>rollout_log_probs</code> / <code>extra_fields</code> 与 <code>status=success</code>；
+      trainer 用 <code>ReplayBuffer.sample()</code> 按 <code>global_steps</code> 与 batch 大小拉取，过滤过期样本，
+      再转 <code>DataProto</code>；一步结束后 <code>tq.kv_clear(...)</code>。V1 强制 <code>transfer_queue.enable=True</code>，
+      并注入 <code>TRANSFER_QUEUE_ENABLE=1</code> 到 Ray runtime env。</p></div>
+  <div class="card"><h3>Reward 的两条路径</h3>
+    <p><b>streaming / async</b>（本例）：无 RM server 或 RM 使用独立资源池，agent loop 每条样本完成时立即发给
+      reward-loop worker，句柄经 <code>AgentLoopManagerTQ</code> 传入；trainer 侧 <code>use_rm=False</code>，不重复计算。<br>
+      <b>colocated</b>：RM 与 actor 共置时，trainer 在采样后调用 <code>compute_rm_score</code>。
+      两个子奖励 <code>required=true</code>，任一失败直接报错而不是静默记 0。</p></div>
+  <div class="card"><h3>sync 模式的生命周期 hooks</h3>
+    <p><code>on_init_end</code> → <code>update_weights(0)</code>，保证第一次 rollout 就用当前策略；
+      <code>on_sample_end</code> → <code>sleep_replicas()</code> 释放 rollout 显存给 actor 更新让路；
+      <code>on_step_end</code> → <code>update_weights(step)</code> 唤醒 replica 并推送 LoRA 增量。
+      增量到引擎模块的映射在 <code>pipelines/minimax_h3_flow_grpo/weight_sync.py</code> 的 <code>map_lora_update_to_engine</code>。</p></div>
+  <div class="card"><h3>采样与训练解耦</h3>
+    <p>Agent loop worker 不在 GPU 上：它只做 tokenize、向 vLLM-Omni 发 HTTP、收集 artifact、调用 reward、写 TQ。
+      actor 的 FSDP2 进程在另一组 NPU 上，两侧只通过 TransferQueue 与权重同步交互，因此 16 卡切成
+      <b>4 个 TP=4 的 rollout replica</b> 之后仍有 4 个 agent loop worker 与之匹配。</p></div>
+</div>
+
+<h2 class="sec">注册表：六个扩展点</h2>
+<table>
+  <thead><tr><th>扩展内容</th><th>注册位置</th><th>分派键</th></tr></thead>
+  <tbody>
+    <tr><td>训练侧模型适配器</td><td><code>DiffusionModelBase.register</code> · <code>pipelines/model_base.py</code></td><td><code>(architecture, algorithm)</code></td></tr>
+    <tr><td>推理侧 pipeline 适配器</td><td><code>VllmOmniPipelineBase.register</code> · <code>pipelines/model_base.py</code></td><td><code>(architecture, algorithm)</code></td></tr>
+    <tr><td>优势估计器</td><td><code>register_diffusion_adv_est</code> · <code>trainer/diffusion/diffusion_algos.py</code></td><td><code>algorithm.adv_estimator</code></td></tr>
+    <tr><td>Loss</td><td><code>register_diffusion_loss</code> · <code>trainer/diffusion/diffusion_algos.py</code></td><td><code>loss_mode</code></td></tr>
+    <tr><td>Agent loop</td><td><code>@register("...agent")</code></td><td><code>rollout.agent.default_agent_loop</code></td></tr>
+    <tr><td>Trainer 模式</td><td><code>register_diffusion_trainer</code> · <code>trainer/diffusion/v1/trainer_base.py</code></td><td><code>trainer.v1.trainer_mode</code></td></tr>
+  </tbody>
+</table>
+<p class="note-inline">这些 <code>@register</code> 是 import 副作用，由 <code>verl_omni/pipelines/__init__.py</code> 统一触发。</p>
+
+<h2 class="sec">示例脚本参数速读</h2>
+<table>
+  <thead><tr><th>参数</th><th>值</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td><code>trainer.n_gpus_per_node</code></td><td>16</td><td>单机 16 NPU，构成 <code>global_pool</code></td></tr>
+    <tr><td><code>rollout.tensor_model_parallel_size</code></td><td>4</td><td>每个 rollout replica 用 4 卡 → 4 个 replica</td></tr>
+    <tr><td><code>rollout.agent.num_workers</code></td><td>4</td><td>16 / 4，与 replica 数对齐</td></tr>
+    <tr><td><code>rollout.n</code> / <code>data.train_batch_size</code></td><td>8 / 32</td><td>每步 32 prompt → 256 条轨迹</td></tr>
+    <tr><td><code>actor.ppo_mini_batch_size</code></td><td>16</td><td>乘 <code>n=8</code> 后每个 mini-batch 处理 128 条轨迹</td></tr>
+    <tr><td><code>model.lora_rank</code> / <code>lora_alpha</code></td><td>64 / 128</td><td>只训 LoRA，权重同步只传增量</td></tr>
+    <tr><td><code>actor.strategy</code></td><td><code>fsdp2</code></td><td>FSDP2；Ulysses SP 由 <code>ulysses_sequence_parallel_size</code> 控制（此处为 1）</td></tr>
+    <tr><td><code>algorithm.adv_estimator</code></td><td><code>flow_grpo</code></td><td><code>global_std=True</code>，避免 n=8 小样本方差噪声</td></tr>
+    <tr><td><code>rollout.algo.sde_type</code></td><td><code>cps</code></td><td><code>noise_level=0.8</code>、<code>sde_window_range=[0,8]</code>、<code>sde_window_size=3</code></td></tr>
+    <tr><td><code>rollout.pipeline.num_inference_steps</code></td><td>10</td><td>视频 shift=12.0 / 音频 shift=3.0，由 H3 适配器内部固定</td></tr>
+  </tbody>
+</table>
+
+<h2 class="sec">扩展入口</h2>
+<table>
+  <thead><tr><th>目标</th><th>改动点</th></tr></thead>
+  <tbody>
+    <tr><td>接入新模型 + 新算法</td><td>新建 <code>verl_omni/pipelines/&lt;model&gt;_&lt;algo&gt;/</code>，注册 <code>DiffusionModelBase</code> 与 <code>VllmOmniPipelineBase</code></td></tr>
+    <tr><td>新增 loss / advantage</td><td>在 <code>trainer/diffusion/diffusion_algos.py</code> 中注册</td></tr>
+    <tr><td>新增 reward</td><td><code>utils/reward_score/</code> 写 scorer；脚本里配置 <code>reward.reward_functions.&lt;key&gt;</code></td></tr>
+    <tr><td>新增 agent loop 行为</td><td>优先扩展 <code>agent_loop/</code> 的通用 worker；模型特有逻辑才放进 pipeline 包</td></tr>
+    <tr><td>新增训练模式</td><td>加 <code>@register_diffusion_trainer("...")</code>，复用 <code>PolicyGradientDiffusionTrainerV1</code> 的 hooks</td></tr>
+  </tbody>
+</table>
+
+<h2 class="sec">调试观察点</h2>
+<div class="two">
+  <div class="card"><h3>Timer 键</h3>
+    <p><code>feed</code>、<code>gen</code>、<code>old_log_prob</code>、<code>ref</code>、<code>adv</code>、
+      <code>update_actor</code>、<code>update_weights</code>、<code>testing</code>、<code>save_checkpoint</code>。
+      <code>gen</code> 包含等待 TQ 的时间；reward 流式算完时 <code>reward</code> timer 接近 0。</p></div>
+  <div class="card"><h3>建议断点与产物</h3>
+    <p><code>_train_sampled_batch</code>（reward / log-prob / advantage 是否齐全）、
+      <code>DiffusionAgentLoopWorkerTQ._run_prompt</code>、<code>MiniMaxH3PipelineWithLogProb.diffuse</code>、
+      <code>FlowGRPOLoss.forward</code>。产物：<code>outputs/&lt;script_name&gt;/{logs,checkpoints,validation_data,rollout_data}</code>。
+      验证是强制的（<code>val_before_train=True</code>、<code>test_freq=10</code>）。</p></div>
+</div>
+
+<footer>
+  依据仓库内 <code>docs/advanced/architecture_and_call_flow.md</code>（Last updated: 10/19/2026）整理，
+  代码状态对应 <code>verl-project/verl-omni</code> <code>main @ 1d5dc7a</code>
+  （<code>v0.3.0rc1-45-g1d5dc7a</code>，包版本 0.3.0，2026-10-19）。
+  示例为 <code>examples/flowgrpo_trainer/minimax_h3/run_minimax_h3_fl2va_lora_v1_npu.sh</code>。
+  图中符号（类名、文件名、函数名、配置键）均来自源码原文；括号内为解读性说明。
+  单文件自包含，无外部依赖；右上角可切换浅色 / 深色。
+</footer>
+
+</div>
+<script>
+(function(){
+  var root=document.documentElement;
+  var btn=document.getElementById('theme');
+  function paint(){btn.textContent = root.classList.contains('light') ? '深色模式' : '浅色模式';}
+  var saved=null;
+  try{saved=localStorage.getItem('verl-omni-theme');}catch(e){}
+  if(saved==='light'){root.classList.add('light');}
+  paint();
+  btn.addEventListener('click',function(){
+    root.classList.toggle('light');paint();
+    try{localStorage.setItem('verl-omni-theme', root.classList.contains('light')?'light':'dark');}catch(e){}
+  });
+  var tabs=[].slice.call(document.querySelectorAll('.tab'));
+  tabs.forEach(function(t){
+    t.addEventListener('click',function(){
+      tabs.forEach(function(o){o.setAttribute('aria-selected','false');});
+      t.setAttribute('aria-selected','true');
+      [].slice.call(document.querySelectorAll('.panel')).forEach(function(p){p.classList.remove('on');});
+      var el=document.getElementById(t.dataset.target);
+      if(el){el.classList.add('on');}
+    });
+  });
+})();
+</script>
+</body>
+</html>

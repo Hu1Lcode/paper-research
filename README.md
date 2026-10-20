@@ -102,3 +102,13 @@ NVIDIA `NVlabs/Sana` 仓库 **`sol-engine`** 分支（Sol Video Inference Engine
 - 内容：近无损视觉接口（每 **32×32 像素 → 1 个视觉 token**，1024× 压缩）与 Native MoT（共享注意力做跨流通信、理解/生成各自保留注意力投影与 FFN、非对称掩码阻断干净表征看噪声状态）；U1.5 两大改造 —— **空间耦合解码器**（Pixel Shuffle 2/2/8 + 3×3 卷积取代逐 patch MLP 头，消除高分辨率接缝/网格伪影）与 **specialize-then-unify** 后训练；**4096²** 标定的分辨率感知噪声条件 s_t = τ_t + NSEmb(σ̄_R)；统一目标 **L = λ_AR·L_AR + λ_Flow·L_Flow + λ_Perc·LPIPS**（x-prediction 像素空间流匹配）；五阶段配方（180K+100K+185K 生成预训练 → 80K 统一中训 → 10.5K SFT → 四专家 RL → 800 步 MOPD，含 **Beta(2+3n/N, 5−3n/N)** 噪声调度与 CFG 速度场蒸馏）；奖励建模（HPSv3++、多重集 IoU 的 **OCR 奖励**、信息图奖励路由、编辑**五维瓶颈 min 聚合**）；数据（**+5,900 万**图文对 / 78 源、88.2% 有效训练量 >1024²、**3,800 万**编辑样本、28 万美学 prompt、12 万 DPO 偏好对）；评测（Qwen-Image-Bench EN **60.22** / ZH **60.13**（w/ PE）、GenEval **0.92** 开源最佳、CVTG-2K 平均 **0.948** 全场最佳、LongText EN 0.988 / ZH 0.989、DPG 88.11、**ImgEdit 4.59 为全表（含闭源）最高**、**VBVR-Pro 交错生成 68.2** 远超专用方案 40.8）；局限与部署（GGUF Q4 + `balanced` 面向 10–12 GB 单卡、LightLLM+LightX2V 单节点 2048² 约 **9 秒** / ~0.15 s/step）
 - 来源：技术报告 [*SenseNova-U1.5: Towards Native Unified Visual Intelligence*](https://github.com/OpenSenseNova/SenseNova-U1/blob/main/docs/pdf/SenseNOVA_U1_5.pdf)（arXiv:2609.11929）、仓库 [OpenSenseNova/SenseNova-U1](https://github.com/OpenSenseNova/SenseNova-U1)、权重 [sensenova/SenseNova-U1.5-8B-MoT](https://huggingface.co/sensenova/SenseNova-U1.5-8B-MoT)（Apache-2.0）、架构博客 [NEO-unify](https://huggingface.co/blog/sensenova/neo-unify)
 - 配图：`sensenova-u1/assets/`；**可交互网页：`sensenova-u1/SenseNova-U1.5-架构与创新点详解.html`**（clone 后浏览器打开，含官方架构图、后训练流水线、数据构成与基准图）
+
+### 12. [verl-omni](verl-omni/)
+
+`verl-project` 的视频 / 全模态生成模型 **RL 后训练框架**调研（在 `verl` 与 `vLLM-Omni` 之上做的一层扩展，用 FlowGRPO 给扩散 / 全模态模型做在线 RL）：
+
+- [verl-omni-架构与调用流程详解.html](verl-omni/verl-omni-架构与调用流程详解.html)
+- 版本：基于 **`main @ 1d5dc7a`**（`v0.3.0rc1-45-g1d5dc7a`，2026-10-19，包版本 **0.3.0**）分析；上游依赖 `verl @ fefb080`、`vllm-omni @ 12e9280`（`pyproject.toml` 固定 commit）
+- 内容：五层架构（启动层 → 编排层 → 训练驱动层 → 采样侧 / 训练侧 → TransferQueue 数据总线）；**TransferQueue 取代 Ray RPC 传 DataProto**（prompt `status=pending` → trajectory `status=success` → `ReplayBuffer.sample()` → `KVBatchMeta` → `kv_clear`）；**ActorRolloutRefWorker 共置** actor / rollout / ref（LoRA 下 ref 复用 base 权重）/ checkpoint engine；采样与训练解耦 + 训练上一步时异步提交下一步；六个注册表扩展点；MiniMax-H3 FL2VA 的 CPS-SDE 噪声调度、视频 / 音频双 shift、CLAP + ImageBind 多视觉奖励流式打分；示例参数（16 NPU、TP=4、`n=8`、`ppo_mini_batch=16`、LoRA r=64 / α=128、`global_std` 优势）
+- 图：三张手绘 SVG（分层架构与组件关系、初始化 + 单步调用时序、一个训练步的数据流），每个组件框顶部标注其源码文件与行号；单文件自包含，离线可用，右上角可切浅色 / 深色
+- 来源：仓库 [verl-project/verl-omni](https://github.com/verl-project/verl-omni)；分析文档为仓库内 `docs/advanced/architecture_and_call_flow.md`，示例配置 `examples/flowgrpo_trainer/minimax_h3/run_minimax_h3_fl2va_lora_v1_npu.sh`
